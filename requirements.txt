@@ -1,0 +1,3 @@
+python-dotenv
+msql-connector-python
+alpaca-trade-api
