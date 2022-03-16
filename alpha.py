@@ -36,14 +36,8 @@ currentTime = now.strftime("%H:%M")
 ################################################################################
 
 
-def isMarketOpen(date, time):
-    calendar = api.get_calendar(today, today)
-    open = calendar[0]._raw['open']
-    close = calendar[0]._raw['close']
-    if currentTime >= open and currentTime <= close:
-        return True
-    else:
-        return False
+def isMarketOpen():
+    return api.get_clock()._raw['is_open']
 
 
 def allowOrderBasedOnCost(orderCost):
@@ -136,7 +130,7 @@ def getPercentUpDown(previousPrice, currentPrice):
 ################################################################################
 
 
-if isMarketOpen(today, currentTime):
+if isMarketOpen():
     symbol = os.getenv('SYMBOL')
     orderQuantity = os.getenv('ORDER_QUANTITY')
     limitBuffer = os.getenv('LIMIT_BUFFER')
