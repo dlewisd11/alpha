@@ -28,10 +28,14 @@ api = tradeapi.REST(
 
 dbTableName = str(os.getenv('DB_TABLE_NAME'))
 
+logFile = open(os.getenv('LOG_FILE_NAME'), "a")
+
 now = datetime.datetime.now(pytz.timezone('US/Eastern'))
 today = now.today()
 formattedDate = today.strftime("%Y-%m-%d")
 currentTime = now.strftime("%H:%M")
+
+logFile.write(str(now) + "\n")
 
 ################################################################################
 
@@ -156,3 +160,4 @@ if isMarketOpen():
             quantity = float(str(position[1]))
             sell(symbol, quantity, limitPrice, tableRecordID)
 
+logFile.close()
