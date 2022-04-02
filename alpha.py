@@ -124,12 +124,16 @@ def getPreviousClose(symbol):
 
 
 def getLatestQuote(symbol):
-    return api.get_latest_quote(symbol)._raw['ap']
+    return api.get_latest_quote(symbol)._raw
+
+
+def getEstimatedMarketPrice(askPrice, bidPrice):
+    return (askPrice + bidPrice) / 2
 
 
 def getPercentUpDown(previousPrice, currentPrice):
     return (currentPrice - previousPrice) / previousPrice
-
+    
 
 ################################################################################
 
@@ -138,20 +142,24 @@ if isMarketOpen():
     symbol = os.getenv('SYMBOL')
     orderQuantity = os.getenv('ORDER_QUANTITY')
     limitBuffer = os.getenv('LIMIT_BUFFER')
-    previousPrice = getPreviousClose(symbol)
-    currentPrice = getLatestQuote(symbol)
-    percentUpDown = getPercentUpDown(previousPrice, currentPrice)
+    previousClosingPrice = getPreviousClose(symbol)
+    latestQuoteData = getLatestQuote(symbol)
+    currentAskPrice = latestQuoteData['ap']
+    currentBidPrice = latestQuoteData['bp']
+    estimatedMarketPrice = getEstimatedMarketPrice(currentAskPrice, currentBidPrice)
+    percentUpDown = getPercentUpDown(previousClosingPrice, estimatedMarketPrice)
 
+    #buy
     if percentUpDown < 0:
-        limitPrice = float('%.2f' % (currentPrice * (1 + float(limitBuffer))))
+        limitPrice = float('%.2f' % (currentAskPrice * (1 + float(limitBuffer))))
         orderCost = float(orderQuantity) * limitPrice
         
         if allowOrderBasedOnCost(orderCost):
             buy(symbol, orderQuantity, limitPrice)
 
-
+    #sell
     elif percentUpDown > 0:
-        limitPrice = float('%.2f' % (currentPrice * (1 - float(limitBuffer))))
+        limitPrice = float('%.2f' % (currentBidPrice * (1 - float(limitBuffer))))
         query = "SELECT id, quantity FROM " + dbTableName + " WHERE ISNULL(saleorderid) AND ISNULL(saledate) AND ISNULL(saleprice) AND symbol = %s AND purchasedate < %s AND purchaseprice < %s"
         values = (symbol, formattedDate, limitPrice)
         positions = runQueryAndReturnResults(query, values)
