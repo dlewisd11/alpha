@@ -35,6 +35,7 @@ today = now.today()
 formattedDate = today.strftime("%Y-%m-%d")
 currentTime = now.strftime("%H:%M")
 
+logFile.write("\n--------------------------------\n")
 logFile.write(str(now) + "\n")
 
 ################################################################################
@@ -60,14 +61,18 @@ def buy(symbol, quantity, limitPrice):
                 time_in_force='day'
     )._raw['id']
 
+    logFile.write(str("buy order submitted") + "\n")
+
     if orderFilled(orderID):
         purchasePrice = api.get_order(orderID)._raw['filled_avg_price']
         tableRecordID = str(uuid.uuid4())
         query = "INSERT INTO " + dbTableName + " (id, symbol, quantity, purchasedate, purchaseprice, purchaseorderid) VALUES (%s, %s, %s, %s, %s, %s)"
         values = (tableRecordID, symbol, quantity, formattedDate, purchasePrice, orderID)
         runQuery(query, values)
+        logFile.write(str("buy order filled") + "\n")
     else:
         api.cancel_order(orderID)
+        logFile.write(str("buy order cancelled") + "\n")
     
 
 def sell(symbol, quantity, limitPrice, tableRecordID):
@@ -80,13 +85,17 @@ def sell(symbol, quantity, limitPrice, tableRecordID):
                 time_in_force='day'
     )._raw['id']
 
+    logFile.write(str("sell order submitted") + "\n")
+
     if orderFilled(orderID):
         salePrice = api.get_order(orderID)._raw['filled_avg_price']
         query = "UPDATE " + dbTableName + " SET saledate = %s, saleprice = %s, saleorderid = %s WHERE id = %s"
         values = (formattedDate, salePrice, orderID, tableRecordID)
         runQuery(query, values)
+        logFile.write(str("sell order filled") + "\n")
     else:
         api.cancel_order(orderID)
+        logFile.write(str("sell order cancelled") + "\n")
 
 
 def runQuery(query, values):
@@ -145,34 +154,47 @@ def getLimitPrice(askPrice, bidPrice, side):
 
 ################################################################################
 
-
 if isMarketOpen():
     symbol = os.getenv('SYMBOL')
-    orderQuantity = os.getenv('ORDER_QUANTITY')
+    quantity = os.getenv('ORDER_QUANTITY')
     previousClosingPrice = getPreviousClose(symbol)
     latestQuoteData = getLatestQuote(symbol)
-    currentAskPrice = latestQuoteData['ap']
-    currentBidPrice = latestQuoteData['bp']
-    estimatedMarketPrice = getEstimatedMarketPrice(currentAskPrice, currentBidPrice)
+    askPrice = latestQuoteData['ap']
+    bidPrice = latestQuoteData['bp']
+    estimatedMarketPrice = getEstimatedMarketPrice(askPrice, bidPrice)
     percentUpDown = getPercentUpDown(previousClosingPrice, estimatedMarketPrice)
 
     #buy
     if percentUpDown < 0:
-        limitPrice = getLimitPrice(currentAskPrice, currentBidPrice, 'buy')
-        orderCost = float(orderQuantity) * limitPrice
+        limitPrice = getLimitPrice(askPrice, bidPrice, 'buy')
+        orderCost = float(quantity) * limitPrice
         
         if allowOrderBasedOnCost(orderCost):
-            buy(symbol, orderQuantity, limitPrice)
+            buy(symbol, quantity, limitPrice)
 
     #sell
     elif percentUpDown > 0:
-        limitPrice = getLimitPrice(currentAskPrice, currentBidPrice, 'sell')
-        query = "SELECT id, quantity FROM " + dbTableName + " WHERE ISNULL(saleorderid) AND ISNULL(saledate) AND ISNULL(saleprice) AND symbol = %s AND purchasedate < %s AND purchaseprice < %s"
+        limitPrice = getLimitPrice(askPrice, bidPrice, 'sell')
+        query = "SELECT id, symbol, quantity FROM " + dbTableName + " WHERE ISNULL(saleorderid) AND ISNULL(saledate) AND ISNULL(saleprice) AND symbol = %s AND purchasedate < %s AND purchaseprice < %s"
         values = (symbol, formattedDate, limitPrice)
         positions = runQueryAndReturnResults(query, values)
         for position in positions:
             tableRecordID = position[0]
-            quantity = float(str(position[1]))
+            symbol = position[1]
+            quantity = float(str(position[2]))
             sell(symbol, quantity, limitPrice, tableRecordID)
+
+    logData = {
+                'symbol': symbol,
+                'quantity': quantity,
+                'previousClose': previousClosingPrice,
+                'askPrice': askPrice,
+                'bidPrice': bidPrice,
+                'marketPrice': estimatedMarketPrice,
+                'limitPrice': limitPrice,
+                'percentUpDown': percentUpDown
+    }
+
+    logFile.write(str(logData) + "\n")
 
 logFile.close()
