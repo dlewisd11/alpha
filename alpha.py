@@ -37,6 +37,7 @@ currentTime = now.strftime("%H:%M")
 
 logFile.write(str(now) + "\n")
 
+
 ################################################################################
 
 
@@ -46,6 +47,7 @@ def isMarketOpen():
 
 def allowOrderBasedOnCost(orderCost):
     accountBalance = api.get_account()._raw['cash']
+    logFile.write(str({'accountBalance': accountBalance}) + "\n")
     return float(accountBalance) > orderCost
 
 
@@ -123,24 +125,20 @@ def getPreviousClose(symbol):
     )[0]._raw['c']
 
 
-def getLatestQuote(symbol):
-    return api.get_latest_quote(symbol)._raw
-
-
-def getEstimatedMarketPrice(askPrice, bidPrice):
-    return (askPrice + bidPrice) / 2
+def getLatestPrice(symbol):
+    return api.get_latest_bar(symbol)._raw['c']
 
 
 def getPercentUpDown(previousPrice, currentPrice):
     return (currentPrice - previousPrice) / previousPrice
     
     
-def getLimitPrice(askPrice, bidPrice, side):
+def getLimitPrice(currentPrice, side):
     limitBuffer = os.getenv('LIMIT_BUFFER')
     if side == 'buy':
-        return float('%.2f' % (askPrice * (1 + float(limitBuffer))))     
+        return float('%.2f' % (currentPrice * (1 + float(limitBuffer))))     
     else:
-        return float('%.2f' % (bidPrice * (1 - float(limitBuffer))))
+        return float('%.2f' % (currentPrice * (1 - float(limitBuffer))))
 
 
 ################################################################################
@@ -150,15 +148,12 @@ if isMarketOpen():
     symbol = os.getenv('SYMBOL')
     orderQuantity = os.getenv('ORDER_QUANTITY')
     previousClosingPrice = getPreviousClose(symbol)
-    latestQuoteData = getLatestQuote(symbol)
-    currentAskPrice = latestQuoteData['ap']
-    currentBidPrice = latestQuoteData['bp']
-    estimatedMarketPrice = getEstimatedMarketPrice(currentAskPrice, currentBidPrice)
-    percentUpDown = getPercentUpDown(previousClosingPrice, estimatedMarketPrice)
+    currentPrice = getLatestPrice(symbol)
+    percentUpDown = getPercentUpDown(previousClosingPrice, currentPrice)
 
     #buy
     if percentUpDown < 0:
-        limitPrice = getLimitPrice(currentAskPrice, currentBidPrice, 'buy')
+        limitPrice = getLimitPrice(currentPrice, 'buy')
         orderCost = float(orderQuantity) * limitPrice
         
         if allowOrderBasedOnCost(orderCost):
@@ -166,10 +161,12 @@ if isMarketOpen():
 
     #sell
     elif percentUpDown > 0:
-        limitPrice = getLimitPrice(currentAskPrice, currentBidPrice, 'sell')
+        limitPrice = getLimitPrice(currentPrice, 'sell')
+        
         query = "SELECT id, quantity FROM " + dbTableName + " WHERE ISNULL(saleorderid) AND ISNULL(saledate) AND ISNULL(saleprice) AND symbol = %s AND purchasedate < %s AND purchaseprice < %s"
         values = (symbol, formattedDate, limitPrice)
         positions = runQueryAndReturnResults(query, values)
+        
         for position in positions:
             tableRecordID = position[0]
             quantity = float(str(position[1]))
