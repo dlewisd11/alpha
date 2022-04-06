@@ -46,12 +46,6 @@ def isMarketOpen():
     return api.get_clock()._raw['is_open']
 
 
-def allowOrderBasedOnCost(orderCost):
-    accountBalance = api.get_account()._raw['cash']
-    logFile.write(str({'accountBalance': accountBalance}) + "\n")
-    return float(accountBalance) > orderCost
-
-
 def buy(symbol, quantity, limitPrice):
 
     orderID = api.submit_order(
@@ -150,11 +144,29 @@ def getLimitPrice(currentPrice, side):
         return float('%.2f' % (currentPrice * (1 - float(limitBuffer))))
 
 
+def getOrderQuantity(symbol, limitPrice):
+
+    query = "SELECT COUNT(*) FROM " + dbTableName + " WHERE ISNULL(saleorderid) AND ISNULL(saledate) AND ISNULL(saleprice) AND symbol = %s"
+    values = (symbol,)
+    numberOpenPositions = runQueryAndReturnResults(query, values)[0][0]
+
+    enduranceDays = int(os.getenv('ENDURANCE_DAYS'))
+    enduranceDaysRemaining = enduranceDays - numberOpenPositions
+    cashAvailable = float(api.get_account()._raw['cash'])
+
+    if(enduranceDaysRemaining > 0):
+        orderQuantity = int((cashAvailable / enduranceDaysRemaining) / limitPrice)
+        return orderQuantity
+    else:
+        orderQuantity = int(cashAvailable / limitPrice)
+        return orderQuantity
+
+
 ################################################################################
+
 
 if isMarketOpen():
     symbol = os.getenv('SYMBOL')
-    quantity = os.getenv('ORDER_QUANTITY')
     previousClosingPrice = getPreviousClose(symbol)
     currentPrice = getLatestPrice(symbol)
     percentUpDown = getPercentUpDown(previousClosingPrice, currentPrice)
@@ -162,9 +174,9 @@ if isMarketOpen():
     #buy
     if percentUpDown < 0:
         limitPrice = getLimitPrice(currentPrice, 'buy')
-        orderCost = float(quantity) * limitPrice
+        quantity = getOrderQuantity(symbol, limitPrice)
         
-        if allowOrderBasedOnCost(orderCost):
+        if quantity > 0:
             buy(symbol, quantity, limitPrice)
 
     #sell
