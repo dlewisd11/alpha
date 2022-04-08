@@ -172,7 +172,7 @@ if isMarketOpen():
     percentUpDown = getPercentUpDown(previousClosingPrice, currentPrice)
 
     #buy
-    if percentUpDown < 0:
+    if percentUpDown <= 0:
         limitPrice = getLimitPrice(currentPrice, 'buy')
         quantity = getOrderQuantity(symbol, limitPrice)
         
