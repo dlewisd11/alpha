@@ -152,13 +152,15 @@ def getOrderQuantity(symbol, limitPrice):
 
     enduranceDays = int(os.getenv('ENDURANCE_DAYS'))
     enduranceDaysRemaining = enduranceDays - numberOpenPositions
-    cashAvailable = float(api.get_account()._raw['cash'])
+
+    activePercentageBuyingPower = float(os.getenv('ACTIVE_PERCENTAGE_BUYING_POWER'))
+    adjustedBuyingPower = float(api.get_account()._raw['buying_power']) * activePercentageBuyingPower
 
     if(enduranceDaysRemaining > 0):
-        orderQuantity = int((cashAvailable / enduranceDaysRemaining) / limitPrice)
+        orderQuantity = int((adjustedBuyingPower / enduranceDaysRemaining) / limitPrice)
         return orderQuantity
     else:
-        orderQuantity = int(cashAvailable / limitPrice)
+        orderQuantity = int(adjustedBuyingPower / limitPrice)
         return orderQuantity
 
 
