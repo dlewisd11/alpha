@@ -181,12 +181,21 @@ if isMarketOpen():
         if quantity > 0:
             buy(symbol, quantity, limitPrice)
 
+        logData = {
+                    'symbol': symbol,
+                    'previousClose': previousClosingPrice,
+                    'currentPrice': currentPrice,
+                    'limitPrice': limitPrice,
+                    'percentUpDown': percentUpDown
+        }
+
     #sell
     elif percentUpDown > 0:
         limitPrice = getLimitPrice(currentPrice, 'sell')
+        sellSideMarginMinimum = float(os.getenv('SELL_SIDE_MARGIN_MINIMUM'))
         
-        query = "SELECT id, symbol, quantity FROM " + dbTableName + " WHERE ISNULL(saleorderid) AND ISNULL(saledate) AND ISNULL(saleprice) AND symbol = %s AND purchasedate < %s AND purchaseprice < %s"
-        values = (symbol, formattedDate, limitPrice)
+        query = "SELECT id, symbol, quantity FROM " + dbTableName + " WHERE ISNULL(saleorderid) AND ISNULL(saledate) AND ISNULL(saleprice) AND symbol = %s AND purchasedate < %s AND ((%s / purchaseprice) - 1) >= %s"
+        values = (symbol, formattedDate, limitPrice, sellSideMarginMinimum)
         positions = runQueryAndReturnResults(query, values)
         
         for position in positions:
@@ -195,14 +204,13 @@ if isMarketOpen():
             quantity = float(str(position[2]))
             sell(symbol, quantity, limitPrice, tableRecordID)
 
-    logData = {
-                'symbol': symbol,
-                'quantity': quantity,
-                'previousClose': previousClosingPrice,
-                'currentPrice': currentPrice,
-                'limitPrice': limitPrice,
-                'percentUpDown': percentUpDown
-    }
+        logData = {
+                    'symbol': symbol,
+                    'previousClose': previousClosingPrice,
+                    'currentPrice': currentPrice,
+                    'limitPrice': limitPrice,
+                    'percentUpDown': percentUpDown
+        }
 
     logFile.write(str(logData) + "\n")
 
