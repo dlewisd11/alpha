@@ -193,9 +193,10 @@ if isMarketOpen():
     elif percentUpDown > 0:
         limitPrice = getLimitPrice(currentPrice, 'sell')
         sellSideMarginMinimum = float(os.getenv('SELL_SIDE_MARGIN_MINIMUM'))
+        marginInterestRate = float(os.getenv('MARGIN_INTEREST_RATE'))
         
-        query = "SELECT id, symbol, quantity FROM " + dbTableName + " WHERE ISNULL(saleorderid) AND ISNULL(saledate) AND ISNULL(saleprice) AND symbol = %s AND purchasedate < %s AND ((%s / purchaseprice) - 1) >= %s"
-        values = (symbol, formattedDate, limitPrice, sellSideMarginMinimum)
+        query = "SELECT id, symbol, quantity FROM " + dbTableName + " WHERE ISNULL(saleorderid) AND ISNULL(saledate) AND ISNULL(saleprice) AND symbol = %s AND purchasedate < %s AND ((%s / purchaseprice) - 1) >= (%s + (DATEDIFF(%s, purchasedate) * (%s / 360)))"
+        values = (symbol, formattedDate, limitPrice, sellSideMarginMinimum, formattedDate, marginInterestRate)
         positions = runQueryAndReturnResults(query, values)
         
         for position in positions:
