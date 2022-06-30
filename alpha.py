@@ -173,8 +173,11 @@ if isMarketOpen():
     currentPrice = getLatestPrice(symbol)
     percentUpDown = getPercentUpDown(previousClosingPrice, currentPrice)
 
+    buyEnabled = os.getenv('BUY_ENABLED')
+    sellEnabled = os.getenv('SELL_ENABLED')
+
     #buy
-    if percentUpDown <= 0:
+    if buyEnabled and percentUpDown <= 0:
         limitPrice = getLimitPrice(currentPrice, 'buy')
         quantity = getOrderQuantity(symbol, limitPrice)
         
@@ -189,8 +192,10 @@ if isMarketOpen():
                     'percentUpDown': percentUpDown
         }
 
+        logFile.write(str(logData) + "\n")
+
     #sell
-    elif percentUpDown > 0:
+    elif sellEnabled and percentUpDown > 0:
         limitPrice = getLimitPrice(currentPrice, 'sell')
         sellSideMarginMinimum = float(os.getenv('SELL_SIDE_MARGIN_MINIMUM'))
         marginInterestRate = float(os.getenv('MARGIN_INTEREST_RATE'))
@@ -213,6 +218,6 @@ if isMarketOpen():
                     'percentUpDown': percentUpDown
         }
 
-    logFile.write(str(logData) + "\n")
+        logFile.write(str(logData) + "\n")
 
 logFile.close()
