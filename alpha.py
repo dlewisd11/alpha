@@ -173,8 +173,8 @@ if isMarketOpen():
     currentPrice = getLatestPrice(symbol)
     percentUpDown = getPercentUpDown(previousClosingPrice, currentPrice)
 
-    buyEnabled = os.getenv('BUY_ENABLED')
-    sellEnabled = os.getenv('SELL_ENABLED')
+    buyEnabled = os.getenv('BUY_ENABLED') == 'True'
+    sellEnabled = os.getenv('SELL_ENABLED') == 'True'
 
     #buy
     if buyEnabled and percentUpDown <= 0:
