@@ -1,223 +1,171 @@
 import os
-import mysql.connector
-import alpaca_trade_api as tradeapi
-import datetime
-import pytz
 import uuid
 
+import logsetup as ls
+import timekeeper as tk
+import database as db
+import api
+
 from dotenv import load_dotenv
-from alpaca_trade_api import TimeFrame
-from datetime import timedelta
-from time import sleep
 
 
-load_dotenv()
+def main():
 
-db = mysql.connector.connect(
-    host=os.getenv('DB_HOST'),
-    user=os.getenv('DB_USER'),
-    password=os.getenv('DB_PW'),
-    database=os.getenv('DB_NAME')
-)
+    try:
+        ls.log.info("BEGIN")
 
-api = tradeapi.REST(
-    key_id = os.getenv('API_KEY_ID'),
-    secret_key = os.getenv('SECRET_KEY'),
-    base_url = os.getenv('ENDPOINT')
-)
+        if api.isMarketOpen():
 
-dbTableName = str(os.getenv('DB_TABLE_NAME'))
+            symbol = os.getenv('SYMBOL')
+            previousClosingPrice = api.getPreviousClose(symbol)
+            
+            latestQuote = api.getLatestQuote(symbol)
+            
+            latestAsk = latestQuote.ask_price
+            latestBid = latestQuote.bid_price
 
-logFile = open(os.getenv('LOG_FILE_NAME'), "a")
+            percentUpDownBuy = getPercentUpDown(previousClosingPrice, latestAsk)
+            percentUpDownSell = getPercentUpDown(previousClosingPrice, latestBid)
 
-now = datetime.datetime.now(pytz.timezone('US/Eastern'))
-today = now.today()
-formattedDate = today.strftime("%Y-%m-%d")
-currentTime = now.strftime("%H:%M")
+            limitPriceBuy = getLimitPrice(latestAsk, 'buy')
+            limitPriceSell = getLimitPrice(latestBid, 'sell')
 
-logFile.write("\n--------------------------------\n")
-logFile.write(str(now) + "\n")
+            buyEnabled = os.getenv('BUY_ENABLED') == 'True'
+            sellEnabled = os.getenv('SELL_ENABLED') == 'True'
 
+            #buy
+            if buyEnabled and percentUpDownBuy <= 0:
 
-################################################################################
+                quantity = getOrderQuantity(symbol, limitPriceBuy)
+                    
+                if quantity > 0:
+                    orderID = api.submitOrder(symbol, quantity, limitPriceBuy, 'buy')
+                    orderFilled = api.orderFilled(orderID)
+                    
+                    if orderFilled:
+                        purchasePrice = api.getFilledOrderAveragePrice(orderID)
+                        insertBuyRecord(symbol, quantity, purchasePrice, orderID)
 
+            #sell
+            elif sellEnabled and percentUpDownSell > 0:
 
-def isMarketOpen():
-    return api.get_clock()._raw['is_open']
+                positions = getOpenPositionsEligibleForSale(symbol, limitPriceSell)
+                
+                for position in positions:
+                    tableRecordID = position[0]
+                    symbol = position[1]
+                    quantity = float(str(position[2]))
+                    orderID = api.submitOrder(symbol, quantity, limitPriceSell, 'sell')
+                    orderFilled = api.orderFilled(orderID)
+                    
+                    if orderFilled:
+                        salePrice = api.getFilledOrderAveragePrice(orderID)
+                        updateSoldPosition(tableRecordID, salePrice, orderID)
 
+            
+            logData = {
+                        'symbol': symbol,
+                        'previousClosingPrice': previousClosingPrice,
+                        'latestAsk': latestAsk,
+                        'latestBid': latestBid,
+                        'limitPriceBuy': limitPriceBuy,
+                        'limitPriceSell': limitPriceSell,
+                        'percentUpDownBuy': percentUpDownBuy,
+                        'percentUpDownSell': percentUpDownSell
+            }
 
-def buy(symbol, quantity, limitPrice):
+            ls.log.info(logData)            
 
-    orderID = api.submit_order(
-                symbol=symbol,
-                qty=quantity,
-                side='buy',
-                type='limit',
-                limit_price=limitPrice,
-                time_in_force='day'
-    )._raw['id']
-
-    logFile.write(str("buy order submitted") + "\n")
-
-    if orderFilled(orderID):
-        purchasePrice = api.get_order(orderID)._raw['filled_avg_price']
-        tableRecordID = str(uuid.uuid4())
-        query = "INSERT INTO " + dbTableName + " (id, symbol, quantity, purchasedate, purchaseprice, purchaseorderid) VALUES (%s, %s, %s, %s, %s, %s)"
-        values = (tableRecordID, symbol, quantity, formattedDate, purchasePrice, orderID)
-        runQuery(query, values)
-        logFile.write(str("buy order filled") + "\n")
-    else:
-        api.cancel_order(orderID)
-        logFile.write(str("buy order cancelled") + "\n")
+    except:
+        ls.log.exception("alpha.main")
     
-
-def sell(symbol, quantity, limitPrice, tableRecordID):
-    orderID = api.submit_order(
-                symbol=symbol,
-                qty=quantity,
-                side='sell',
-                type='limit',
-                limit_price=limitPrice,
-                time_in_force='day'
-    )._raw['id']
-
-    logFile.write(str("sell order submitted") + "\n")
-
-    if orderFilled(orderID):
-        salePrice = api.get_order(orderID)._raw['filled_avg_price']
-        query = "UPDATE " + dbTableName + " SET saledate = %s, saleprice = %s, saleorderid = %s WHERE id = %s"
-        values = (formattedDate, salePrice, orderID, tableRecordID)
-        runQuery(query, values)
-        logFile.write(str("sell order filled") + "\n")
-    else:
-        api.cancel_order(orderID)
-        logFile.write(str("sell order cancelled") + "\n")
-
-
-def runQuery(query, values):
-    dbCursor = db.cursor()
-    dbCursor.execute(query, values)
-    db.commit()
-
-
-def runQueryAndReturnResults(query, values):
-    dbCursor = db.cursor()
-    dbCursor.execute(query, values)
-    return dbCursor.fetchall()
-    
-
-def orderFilled(orderID):
-    orderFilled = False
-    for i in range(int(os.getenv('ORDER_WAIT_ITERATIONS'))):
-        orderFilled = api.get_order(orderID)._raw['status'] == 'filled'
-        if orderFilled:
-            break
-        sleep(int(os.getenv('ORDER_WAIT_SECONDS')))
-    return orderFilled
-
-
-def getPreviousClose(symbol):
-    calendarStartDate = today - timedelta(days=14)
-    tradingCalendar = api.get_calendar(calendarStartDate, today)
-    previousTradingDate = tradingCalendar[len(tradingCalendar)-2]._raw['date']
-    return api.get_bars(
-        'VT',
-        TimeFrame.Day,
-        previousTradingDate,
-        previousTradingDate
-    )[0]._raw['c']
-
-
-def getLatestPrice(symbol):
-    return api.get_latest_bar(symbol)._raw['c']
+    finally:
+        ls.log.info("END")
 
 
 def getPercentUpDown(previousPrice, currentPrice):
-    return (currentPrice - previousPrice) / previousPrice
-    
-    
+    try:
+        return (currentPrice - previousPrice) / previousPrice
+    except:
+        ls.log.exception("alpha.getPercentUpDown")
+        
+        
 def getLimitPrice(currentPrice, side):
-    limitBuffer = os.getenv('LIMIT_BUFFER')
-    if side == 'buy':
-        return float('%.2f' % (currentPrice * (1 + float(limitBuffer))))     
-    else:
-        return float('%.2f' % (currentPrice * (1 - float(limitBuffer))))
+    try:
+        limitBuffer = os.getenv('LIMIT_BUFFER')
+        if side == 'buy':
+            return float('%.2f' % (currentPrice * (1 + float(limitBuffer))))     
+        else:
+            return float('%.2f' % (currentPrice * (1 - float(limitBuffer))))  
+    except:
+        ls.log.exception("alpha.getLimitPrice")
 
 
 def getOrderQuantity(symbol, limitPrice):
+    try:
+        query = "SELECT COUNT(*) FROM " + db.dbTableName + " WHERE ISNULL(saleorderid) AND ISNULL(saledate) AND ISNULL(saleprice) AND symbol = %s"
+        values = (symbol,)
+        numberOpenPositions = db.runQueryAndReturnResults(query, values)[0][0]
 
-    query = "SELECT COUNT(*) FROM " + dbTableName + " WHERE ISNULL(saleorderid) AND ISNULL(saledate) AND ISNULL(saleprice) AND symbol = %s"
-    values = (symbol,)
-    numberOpenPositions = runQueryAndReturnResults(query, values)[0][0]
+        enduranceDays = int(os.getenv('ENDURANCE_DAYS'))
+        enduranceDaysRemaining = enduranceDays - numberOpenPositions
 
-    enduranceDays = int(os.getenv('ENDURANCE_DAYS'))
-    enduranceDaysRemaining = enduranceDays - numberOpenPositions
+        allowMarginTrading = os.getenv('ALLOW_MARGIN_TRADING') == 'True'
+        accountInformation = api.getAccountInformation()
 
-    activePercentageBuyingPower = float(os.getenv('ACTIVE_PERCENTAGE_BUYING_POWER'))
-    adjustedBuyingPower = float(api.get_account()._raw['buying_power']) * activePercentageBuyingPower
-
-    if(enduranceDaysRemaining > 0):
-        orderQuantity = int((adjustedBuyingPower / enduranceDaysRemaining) / limitPrice)
-        return orderQuantity
-    else:
-        orderQuantity = int(adjustedBuyingPower / limitPrice)
-        return orderQuantity
-
-
-################################################################################
-
-
-if isMarketOpen():
-    symbol = os.getenv('SYMBOL')
-    previousClosingPrice = getPreviousClose(symbol)
-    currentPrice = getLatestPrice(symbol)
-    percentUpDown = getPercentUpDown(previousClosingPrice, currentPrice)
-
-    buyEnabled = os.getenv('BUY_ENABLED') == 'True'
-    sellEnabled = os.getenv('SELL_ENABLED') == 'True'
-
-    #buy
-    if buyEnabled and percentUpDown <= 0:
-        limitPrice = getLimitPrice(currentPrice, 'buy')
-        quantity = getOrderQuantity(symbol, limitPrice)
+        if allowMarginTrading:
+            activePercentageBuyingPower = float(os.getenv('ACTIVE_PERCENTAGE_BUYING_POWER'))
+            buyingPower = float(accountInformation.buying_power)
+            activeBuyingPower = buyingPower * activePercentageBuyingPower
         
-        if quantity > 0:
-            buy(symbol, quantity, limitPrice)
+        else:
+            activeBuyingPower = float(accountInformation.cash)
 
-        logData = {
-                    'symbol': symbol,
-                    'previousClose': previousClosingPrice,
-                    'currentPrice': currentPrice,
-                    'limitPrice': limitPrice,
-                    'percentUpDown': percentUpDown
-        }
+        if(enduranceDaysRemaining > 0):
+            orderQuantity = int((activeBuyingPower / enduranceDaysRemaining) / limitPrice)
+            return orderQuantity
+        else:
+            orderQuantity = int(activeBuyingPower / limitPrice)
+            return orderQuantity
+    except:
+        ls.log.exception("alpha.getOrderQuantity")
 
-        logFile.write(str(logData) + "\n")
 
-    #sell
-    elif sellEnabled and percentUpDown > 0:
-        limitPrice = getLimitPrice(currentPrice, 'sell')
+def insertBuyRecord(symbol, quantity, purchasePrice, orderID):
+    try:
+        tableRecordID = str(uuid.uuid4())
+        query = "INSERT INTO " + db.dbTableName + " (id, symbol, quantity, purchasedate, purchaseprice, purchaseorderid) VALUES (%s, %s, %s, %s, %s, %s)"
+        values = (tableRecordID, symbol, quantity, tk.formattedDate, purchasePrice, orderID)
+        db.runQuery(query, values)
+    except:
+        ls.log.exception("alpha.insertBuyRecord")
+
+
+def updateSoldPosition(tableRecordID, salePrice, sellOrderID):
+    try:
+        query = "UPDATE " + db.dbTableName + " SET saledate = %s, saleprice = %s, saleorderid = %s WHERE id = %s"
+        values = (tk.formattedDate, salePrice, sellOrderID, tableRecordID)
+        db.runQuery(query, values)
+    except:
+        ls.log.exception("alpha.updateSoldPosition")
+
+
+def getOpenPositionsEligibleForSale(symbol, limitPriceSell):
+    try:
         sellSideMarginMinimum = float(os.getenv('SELL_SIDE_MARGIN_MINIMUM'))
         marginInterestRate = float(os.getenv('MARGIN_INTEREST_RATE'))
-        
-        query = "SELECT id, symbol, quantity FROM " + dbTableName + " WHERE ISNULL(saleorderid) AND ISNULL(saledate) AND ISNULL(saleprice) AND symbol = %s AND purchasedate < %s AND ((%s / purchaseprice) - 1) >= (%s + (DATEDIFF(%s, purchasedate) * (%s / 360)))"
-        values = (symbol, formattedDate, limitPrice, sellSideMarginMinimum, formattedDate, marginInterestRate)
-        positions = runQueryAndReturnResults(query, values)
-        
-        for position in positions:
-            tableRecordID = position[0]
-            symbol = position[1]
-            quantity = float(str(position[2]))
-            sell(symbol, quantity, limitPrice, tableRecordID)
+                
+        query = "SELECT id, symbol, quantity FROM " + db.dbTableName + " WHERE ISNULL(saleorderid) AND ISNULL(saledate) AND ISNULL(saleprice) AND symbol = %s AND purchasedate < %s AND ((%s / purchaseprice) - 1) >= (%s + (DATEDIFF(%s, purchasedate) * (%s / 360)))"
+        values = (symbol, tk.formattedDate, limitPriceSell, sellSideMarginMinimum, tk.formattedDate, marginInterestRate)
+        positions = db.runQueryAndReturnResults(query, values)
+        return positions
+    except:
+        ls.log.exception("alpha.getOpenPositionsEligibleForSale")
 
-        logData = {
-                    'symbol': symbol,
-                    'previousClose': previousClosingPrice,
-                    'currentPrice': currentPrice,
-                    'limitPrice': limitPrice,
-                    'percentUpDown': percentUpDown
-        }
 
-        logFile.write(str(logData) + "\n")
-
-logFile.close()
+if __name__ == '__main__':
+    try:
+        load_dotenv()
+        main()
+    except:
+        ls.log.exception("alpha")
