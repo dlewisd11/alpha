@@ -1,3 +1,6 @@
+from dotenv import load_dotenv
+load_dotenv()
+
 import os
 import uuid
 
@@ -5,8 +8,6 @@ import logsetup as ls
 import timekeeper as tk
 import database as db
 import api
-
-from dotenv import load_dotenv
 
 
 def main():
@@ -165,7 +166,6 @@ def getOpenPositionsEligibleForSale(symbol, limitPriceSell):
 
 if __name__ == '__main__':
     try:
-        load_dotenv()
         main()
     except:
         ls.log.exception("alpha")
