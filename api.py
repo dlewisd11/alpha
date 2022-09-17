@@ -8,7 +8,6 @@ from alpaca.trading.requests import LimitOrderRequest, GetCalendarRequest
 from alpaca.trading.enums import OrderSide, TimeInForce, OrderStatus
 
 from alpaca.data import StockHistoricalDataClient,StockBarsRequest, StockLatestBarRequest, StockLatestQuoteRequest, TimeFrame
-from alpaca.data.enums import DataFeed
 
 from alpaca.broker import BrokerClient
 
@@ -79,22 +78,39 @@ def getFilledOrderAveragePrice(orderID):
         ls.log.exception("api.getFilledOrderAveragePrice")
 
 
-def getPreviousClose(symbol):
+def getTradingCalendar():
     try:
-        calendarStartDate = tk.today - timedelta(days=14)
+        calendarStartDate = tk.today - timedelta(days=30)
         calendarRequest = GetCalendarRequest(start=calendarStartDate, end=tk.today)
         tradingCalendar = trading_client.get_calendar(calendarRequest)
-        previousTradingDate = str(tradingCalendar[len(tradingCalendar)-2].date)
+        return tradingCalendar
+    except:
+        ls.log.exception("api.getTradingCalendar")
+
+
+def getStockBars(symbol, startDate, endDate):
+    try:
         stockBarsRequest = StockBarsRequest(
-                                    symbol_or_symbols=symbol,
-                                    start=previousTradingDate,
-                                    end=previousTradingDate,
-                                    timeframe=TimeFrame.Day
+                                symbol_or_symbols=symbol,
+                                start=startDate,
+                                end=endDate,
+                                timeframe=TimeFrame.Day
                                     
         )
-        return data_client.get_stock_bars(stockBarsRequest).data[symbol][0].close
+        return data_client.get_stock_bars(stockBarsRequest)
     except:
-        ls.log.exception("api.getPreviousClose")
+        ls.log.exception("api.getStockBars")
+
+
+def getStockLatestBar(symbol):
+    try:
+        stockLatestBarRequest = StockLatestBarRequest(
+                                symbol_or_symbols=symbol
+                                    
+        )
+        return data_client.get_stock_latest_bar(stockLatestBarRequest)
+    except:
+        ls.log.exception("api.getStockLatestBar")
 
 
 def getLatestQuote(symbol):

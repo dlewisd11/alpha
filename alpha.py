@@ -18,8 +18,10 @@ def main():
         if api.isMarketOpen():
 
             symbol = os.getenv('SYMBOL')
-            previousClosingPrice = api.getPreviousClose(symbol)
-            
+            bars = getBars(symbol)
+            previousClosingPrice = getPreviousClose(symbol, bars)
+            rsi = getRSI(symbol, bars, 14)
+   
             latestQuote = api.getLatestQuote(symbol)
             
             latestAsk = latestQuote.ask_price
@@ -82,6 +84,53 @@ def main():
     
     finally:
         ls.log.info("END")
+
+
+def getBars(symbol):
+    try:
+        tradingCalendar = api.getTradingCalendar()
+        stockBars = api.getStockBars(
+                                symbol, 
+                                str(tradingCalendar[0].date), 
+                                str(tradingCalendar[len(tradingCalendar)-1].date)
+        )
+        return stockBars
+    except:
+        ls.log.exception("alpha.getBars")
+
+
+def getPreviousClose(symbol, bars):
+    try:
+        barsData = bars.data[symbol]
+        return barsData[len(barsData)-2].close
+    except:
+        ls.log.exception("alpha.getPreviousClose")
+
+
+def getRSI(symbol, bars, period):
+    try:
+        gain = 0
+        loss = 0
+        barsData = bars.data[symbol]
+
+        for i in range(period):
+            first = barsData[len(barsData)-2-i].close 
+            second = barsData[len(barsData)-1-i].close
+            
+            if first<second:
+                gain = gain + abs(second-first)
+            if first>second:
+                loss = loss + abs(second-first)
+        
+        averageGain = gain / period
+        averageLoss = loss / period
+
+        rs = averageGain / averageLoss
+        rsi = 100 - 100 / (1 + rs)
+
+        return rsi
+    except:
+        ls.log.exception("alpha.getRSI")
 
 
 def getPercentUpDown(previousPrice, currentPrice):
