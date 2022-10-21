@@ -9,6 +9,8 @@ import timekeeper as tk
 import database as db
 import api
 
+from asset import Asset
+
 
 def main():
 
@@ -17,67 +19,68 @@ def main():
 
         if api.isMarketOpen():
 
-            symbol = os.getenv('SYMBOL')
-            bars = getBars(symbol)
-            previousClosingPrice = getPreviousClose(symbol, bars)
-            rsi = getRSI(symbol, bars, 14)
-   
-            latestQuote = api.getLatestQuote(symbol)
-            
-            latestAsk = latestQuote.ask_price
-            latestBid = latestQuote.bid_price
-
-            percentUpDownBuy = getPercentUpDown(previousClosingPrice, latestAsk)
-            percentUpDownSell = getPercentUpDown(previousClosingPrice, latestBid)
-
-            limitPriceBuy = getLimitPrice(latestAsk, 'buy')
-            limitPriceSell = getLimitPrice(latestBid, 'sell')
-
             buyEnabled = os.getenv('BUY_ENABLED') == 'True'
             sellEnabled = os.getenv('SELL_ENABLED') == 'True'
+            
+            symbolList = os.getenv('TICKERS').split(',')
+            
+            if buyEnabled:
 
-            #buy
-            if buyEnabled and percentUpDownBuy <= 0:
+                for symbol in symbolList:
 
-                quantity = getOrderQuantity(symbol, limitPriceBuy)
-                    
-                if quantity > 0:
-                    orderID = api.submitOrder(symbol, quantity, limitPriceBuy, 'buy')
-                    orderFilled = api.orderFilled(orderID)
-                    
-                    if orderFilled:
-                        purchasePrice = api.getFilledOrderAveragePrice(orderID)
-                        insertBuyRecord(symbol, quantity, purchasePrice, orderID)
+                    asset = Asset(symbol)
+                    rsi = asset.rsi
+                    percentUpDownBuy = asset.percentUpDownBuy
+                    limitPriceBuy = asset.limitPriceBuy
+
+                    #buy
+                    if percentUpDownBuy <= 0 and rsi <= 40:
+
+                        quantity = getOrderQuantity(symbol, limitPriceBuy)
+                            
+                        if quantity > 0:
+                            orderID = api.submitOrder(symbol, quantity, limitPriceBuy, 'buy')
+                            orderFilled = api.orderFilled(orderID)
+                            
+                            if orderFilled:
+                                purchasePrice = api.getFilledOrderAveragePrice(orderID)
+                                insertBuyRecord(symbol, quantity, purchasePrice, orderID)
 
             #sell
-            elif sellEnabled and percentUpDownSell > 0:
+            if sellEnabled:
 
-                positions = getOpenPositionsEligibleForSale(symbol, limitPriceSell)
+                positions = getOpenPositionsEligibleForSale()
                 
                 for position in positions:
+
                     tableRecordID = position[0]
                     symbol = position[1]
                     quantity = float(str(position[2]))
-                    orderID = api.submitOrder(symbol, quantity, limitPriceSell, 'sell')
-                    orderFilled = api.orderFilled(orderID)
-                    
-                    if orderFilled:
-                        salePrice = api.getFilledOrderAveragePrice(orderID)
-                        updateSoldPosition(tableRecordID, salePrice, orderID)
+                    purchaseDate = position[3]
+                    purchasePrice = float(position[4])
 
-            
-            logData = {
-                        'symbol': symbol,
-                        'previousClosingPrice': previousClosingPrice,
-                        'latestAsk': latestAsk,
-                        'latestBid': latestBid,
-                        'limitPriceBuy': limitPriceBuy,
-                        'limitPriceSell': limitPriceSell,
-                        'percentUpDownBuy': percentUpDownBuy,
-                        'percentUpDownSell': percentUpDownSell
-            }
+                    asset = Asset(symbol)
+                    limitPriceSell = asset.limitPriceSell
+                    percentUpDownSell = asset.percentUpDownSell
+                    rsi = asset.rsi
 
-            ls.log.info(logData)            
+                    convertedPurchaseDate = tk.stringToDate(purchaseDate)
+                    sellSideMarginMinimum = float(os.getenv('SELL_SIDE_MARGIN_MINIMUM'))
+                    marginInterestRate = float(os.getenv('MARGIN_INTEREST_RATE'))
+
+                    elapsedTimeSellCondition = purchaseDate < tk.formattedDate
+                    percentUpDownSellCondition = percentUpDownSell > 0
+                    rsiSellCondition = rsi >= 60
+                    profitMarginSellCondition = ((limitPriceSell / purchasePrice) - 1) >= (sellSideMarginMinimum + (tk.dateDiff(convertedPurchaseDate, tk.today) * (marginInterestRate / 360)))
+
+                    if(elapsedTimeSellCondition and percentUpDownSellCondition and profitMarginSellCondition and rsiSellCondition):
+
+                        orderID = api.submitOrder(symbol, quantity, limitPriceSell, 'sell')
+                        orderFilled = api.orderFilled(orderID)
+                        
+                        if orderFilled:
+                            salePrice = api.getFilledOrderAveragePrice(orderID)
+                            updateSoldPosition(tableRecordID, salePrice, orderID)
 
     except:
         ls.log.exception("alpha.main")
@@ -85,72 +88,7 @@ def main():
     finally:
         ls.log.info("END")
 
-
-def getBars(symbol):
-    try:
-        tradingCalendar = api.getTradingCalendar()
-        stockBars = api.getStockBars(
-                                symbol, 
-                                str(tradingCalendar[0].date), 
-                                str(tradingCalendar[len(tradingCalendar)-1].date)
-        )
-        return stockBars
-    except:
-        ls.log.exception("alpha.getBars")
-
-
-def getPreviousClose(symbol, bars):
-    try:
-        barsData = bars.data[symbol]
-        return barsData[len(barsData)-2].close
-    except:
-        ls.log.exception("alpha.getPreviousClose")
-
-
-def getRSI(symbol, bars, period):
-    try:
-        gain = 0
-        loss = 0
-        barsData = bars.data[symbol]
-
-        for i in range(period):
-            first = barsData[len(barsData)-2-i].close 
-            second = barsData[len(barsData)-1-i].close
-            
-            if first<second:
-                gain = gain + abs(second-first)
-            if first>second:
-                loss = loss + abs(second-first)
         
-        averageGain = gain / period
-        averageLoss = loss / period
-
-        rs = averageGain / averageLoss
-        rsi = 100 - 100 / (1 + rs)
-
-        return rsi
-    except:
-        ls.log.exception("alpha.getRSI")
-
-
-def getPercentUpDown(previousPrice, currentPrice):
-    try:
-        return (currentPrice - previousPrice) / previousPrice
-    except:
-        ls.log.exception("alpha.getPercentUpDown")
-        
-        
-def getLimitPrice(currentPrice, side):
-    try:
-        limitBuffer = os.getenv('LIMIT_BUFFER')
-        if side == 'buy':
-            return float('%.2f' % (currentPrice * (1 + float(limitBuffer))))     
-        else:
-            return float('%.2f' % (currentPrice * (1 - float(limitBuffer))))  
-    except:
-        ls.log.exception("alpha.getLimitPrice")
-
-
 def getOrderQuantity(symbol, limitPrice):
     try:
         query = "SELECT COUNT(*) FROM " + db.dbTableName + " WHERE ISNULL(saleorderid) AND ISNULL(saledate) AND ISNULL(saleprice) AND symbol = %s"
@@ -200,14 +138,10 @@ def updateSoldPosition(tableRecordID, salePrice, sellOrderID):
         ls.log.exception("alpha.updateSoldPosition")
 
 
-def getOpenPositionsEligibleForSale(symbol, limitPriceSell):
+def getOpenPositionsEligibleForSale():
     try:
-        sellSideMarginMinimum = float(os.getenv('SELL_SIDE_MARGIN_MINIMUM'))
-        marginInterestRate = float(os.getenv('MARGIN_INTEREST_RATE'))
-                
-        query = "SELECT id, symbol, quantity FROM " + db.dbTableName + " WHERE ISNULL(saleorderid) AND ISNULL(saledate) AND ISNULL(saleprice) AND symbol = %s AND purchasedate < %s AND ((%s / purchaseprice) - 1) >= (%s + (DATEDIFF(%s, purchasedate) * (%s / 360)))"
-        values = (symbol, tk.formattedDate, limitPriceSell, sellSideMarginMinimum, tk.formattedDate, marginInterestRate)
-        positions = db.runQueryAndReturnResults(query, values)
+        query = "SELECT id, symbol, quantity, purchasedate, purchaseprice FROM " + db.dbTableName + " WHERE ISNULL(saleorderid) AND ISNULL(saledate) AND ISNULL(saleprice)"
+        positions = db.runQueryAndReturnResults(query, ())
         return positions
     except:
         ls.log.exception("alpha.getOpenPositionsEligibleForSale")
@@ -218,3 +152,4 @@ if __name__ == '__main__':
         main()
     except:
         ls.log.exception("alpha")
+

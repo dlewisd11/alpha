@@ -7,11 +7,10 @@ from alpaca.trading.client import TradingClient
 from alpaca.trading.requests import LimitOrderRequest, GetCalendarRequest
 from alpaca.trading.enums import OrderSide, TimeInForce, OrderStatus
 
-from alpaca.data import StockHistoricalDataClient,StockBarsRequest, StockLatestBarRequest, StockLatestQuoteRequest, TimeFrame
+from alpaca.data import StockHistoricalDataClient, StockBarsRequest, StockLatestBarRequest, StockLatestQuoteRequest, TimeFrame
 
 from alpaca.broker import BrokerClient
 
-from datetime import timedelta
 from time import sleep
 
 
@@ -80,7 +79,7 @@ def getFilledOrderAveragePrice(orderID):
 
 def getTradingCalendar():
     try:
-        calendarStartDate = tk.today - timedelta(days=30)
+        calendarStartDate = tk.todayMinus30Days
         calendarRequest = GetCalendarRequest(start=calendarStartDate, end=tk.today)
         tradingCalendar = trading_client.get_calendar(calendarRequest)
         return tradingCalendar
