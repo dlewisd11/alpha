@@ -22,6 +22,7 @@ class Asset:
             logData = {
                         'symbol': self.symbol,
                         'previousClosingPrice': self.previousClosingPrice,
+                        'rsi': self.rsi,
                         'latestAsk': self.latestAsk,
                         'latestBid': self.latestBid,
                         'limitPriceBuy': self.limitPriceBuy,
