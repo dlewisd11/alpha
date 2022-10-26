@@ -58,13 +58,14 @@ def submitOrder(symbol, quantity, limitPrice, orderSide):
 
 def orderFilled(orderID):
     try:
-        orderFilled = False
-        for i in range(int(os.getenv('ORDER_WAIT_ITERATIONS'))):
-            orderFilled = trading_client.get_order_by_id(order_id=orderID).status == OrderStatus.FILLED
-            if orderFilled:
-                break
+        for i in range(int(os.getenv('ORDER_WAIT_ITERATIONS'))):    
+            orderStatus = trading_client.get_order_by_id(order_id=orderID).status
+            if orderStatus == OrderStatus.FILLED:
+                return True
+            elif orderStatus == OrderStatus.CANCELED:
+                return False
             sleep(int(os.getenv('ORDER_WAIT_SECONDS')))
-        return orderFilled
+        return False
     except:
         ls.log.exception("api.orderFilled")
 
