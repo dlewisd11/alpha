@@ -14,10 +14,12 @@ class Asset:
             self.latestQuote = api.getLatestQuote(self.symbol)
             self.latestAsk = self.latestQuote.ask_price
             self.latestBid = self.latestQuote.bid_price
-            self.percentUpDownBuy = self.__getPercentUpDown(self.previousClosingPrice, self.latestAsk)
-            self.percentUpDownSell = self.__getPercentUpDown(self.previousClosingPrice, self.latestBid)
-            self.limitPriceBuy = self.__getLimitPrice(self.latestAsk, 'buy')
-            self.limitPriceSell = self.__getLimitPrice(self.latestBid, 'sell')
+            self.latestTradePrice = api.getLatestTrade(self.symbol).price
+            self.latestBarPrice = api.getStockLatestBar(self.symbol)[symbol].close
+            self.percentUpDownBuy = self.__getPercentUpDown(self.previousClosingPrice, self.latestTradePrice)
+            self.percentUpDownSell = self.__getPercentUpDown(self.previousClosingPrice, self.latestTradePrice)
+            self.limitPriceBuy = self.__getLimitPrice(self.latestTradePrice, 'buy')
+            self.limitPriceSell = self.__getLimitPrice(self.latestTradePrice, 'sell')
 
             logData = {
                         'symbol': self.symbol,
@@ -25,6 +27,8 @@ class Asset:
                         'rsi': self.rsi,
                         'latestAsk': self.latestAsk,
                         'latestBid': self.latestBid,
+                        'latestTradePrice': self.latestTradePrice,
+                        'latestBarPrice' : self.latestBarPrice,
                         'limitPriceBuy': self.limitPriceBuy,
                         'limitPriceSell': self.limitPriceSell,
                         'percentUpDownBuy': self.percentUpDownBuy,

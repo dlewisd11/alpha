@@ -21,6 +21,15 @@ def main():
 
             buyEnabled = os.getenv('BUY_ENABLED') == 'True'
             sellEnabled = os.getenv('SELL_ENABLED') == 'True'
+            ordersEnabled = os.getenv('ORDERS_ENABLED') == 'True'
+
+            logData = {
+                        'buyEnabled': buyEnabled,
+                        'sellEnabled': sellEnabled,
+                        'ordersEnabled': ordersEnabled
+            }
+
+            ls.log.info(logData)
             
             symbolList = os.getenv('TICKERS').split(',')
             
@@ -32,13 +41,14 @@ def main():
                     rsi = asset.rsi
                     percentUpDownBuy = asset.percentUpDownBuy
                     limitPriceBuy = asset.limitPriceBuy
+                    rsiLower = int(os.getenv('RSI_LOWER'))
 
                     #buy
-                    if percentUpDownBuy <= 0 and rsi <= 40:
+                    if percentUpDownBuy <= 0 and rsi <= rsiLower:
 
                         quantity = getOrderQuantity(symbol, limitPriceBuy)
                             
-                        if quantity > 0:
+                        if quantity > 0 and ordersEnabled:
                             orderID = api.submitOrder(symbol, quantity, limitPriceBuy, 'buy')
                             orderFilled = api.orderFilled(orderID)
                             
@@ -67,13 +77,14 @@ def main():
                     convertedPurchaseDate = tk.stringToDate(purchaseDate)
                     sellSideMarginMinimum = float(os.getenv('SELL_SIDE_MARGIN_MINIMUM'))
                     marginInterestRate = float(os.getenv('MARGIN_INTEREST_RATE'))
+                    rsiUpper = int(os.getenv('RSI_UPPER'))
 
                     elapsedTimeSellCondition = purchaseDate < tk.formattedDate
                     percentUpDownSellCondition = percentUpDownSell > 0
-                    rsiSellCondition = rsi >= 60
+                    rsiSellCondition = rsi >= rsiUpper
                     profitMarginSellCondition = ((limitPriceSell / purchasePrice) - 1) >= (sellSideMarginMinimum + (tk.dateDiff(convertedPurchaseDate, tk.today) * (marginInterestRate / 360)))
 
-                    if(elapsedTimeSellCondition and percentUpDownSellCondition and profitMarginSellCondition and rsiSellCondition):
+                    if(elapsedTimeSellCondition and percentUpDownSellCondition and profitMarginSellCondition and rsiSellCondition and ordersEnabled):
 
                         orderID = api.submitOrder(symbol, quantity, limitPriceSell, 'sell')
                         orderFilled = api.orderFilled(orderID)

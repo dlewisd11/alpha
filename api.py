@@ -7,7 +7,7 @@ from alpaca.trading.client import TradingClient
 from alpaca.trading.requests import LimitOrderRequest, GetCalendarRequest
 from alpaca.trading.enums import OrderSide, TimeInForce, OrderStatus
 
-from alpaca.data import StockHistoricalDataClient, StockBarsRequest, StockLatestBarRequest, StockLatestQuoteRequest, TimeFrame
+from alpaca.data import StockHistoricalDataClient, StockBarsRequest, StockLatestBarRequest, StockLatestQuoteRequest, StockLatestTradeRequest, TimeFrame
 
 from alpaca.broker import BrokerClient
 
@@ -120,6 +120,16 @@ def getLatestQuote(symbol):
         return data_client.get_stock_latest_quote(stockLatestQuoteRequest)[symbol]
     except:
         ls.log.exception("api.getLatestQuote")
+
+
+def getLatestTrade(symbol):
+    try:
+        stockLatestTradeRequest = StockLatestTradeRequest(
+                                    symbol_or_symbols=symbol
+        )
+        return data_client.get_stock_latest_trade(stockLatestTradeRequest)[symbol]
+    except:
+        ls.log.exception("api.getLatestTrade")
 
 
 def getAccountInformation():
