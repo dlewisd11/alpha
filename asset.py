@@ -83,8 +83,11 @@ class Asset:
             averageGain = gain / rsiPeriod
             averageLoss = loss / rsiPeriod
 
-            rs = averageGain / averageLoss
-            rsi = 100 - 100 / (1 + rs)
+            if averageLoss != 0:
+                rs = averageGain / averageLoss
+                rsi = 100 - 100 / (1 + rs)
+            else:
+                rsi = 100
 
             return rsi
         except:
