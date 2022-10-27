@@ -69,10 +69,13 @@ def orderFilled(orderID):
         for i in range(orderWaitIterations):    
             orderStatus = trading_client.get_order_by_id(order_id=orderID).status
             if orderStatus == OrderStatus.FILLED:
+                ls.log.info(str("order id " + orderID + " filled"))
                 return True
             elif orderStatus == OrderStatus.CANCELED:
+                ls.log.info(str("order id " + orderID + " canceled"))
                 return False
             sleep(orderWaitSeconds)
+        ls.log.info(str("order id " + orderID + " not filled"))
         return False
     except:
         ls.log.exception("api.orderFilled")
