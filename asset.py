@@ -8,18 +8,20 @@ class Asset:
     def __init__(self, symbol):
         try:
             self.symbol = symbol
+            api.subscribeLiveQuotes(self.symbol)
             self.bars = self.__getBars()
             self.previousClosingPrice = self.__getPreviousClose()
             self.rsi = self.__getRSI()
             self.latestQuote = api.getLatestQuote(self.symbol)
-            self.latestAsk = self.latestQuote.ask_price
-            self.latestBid = self.latestQuote.bid_price
+            self.latestAsk = api.liveData[self.symbol].ask_price if self.symbol in api.liveData else self.latestQuote.ask_price
+            self.latestBid = api.liveData[self.symbol].bid_price if self.symbol in api.liveData else self.latestQuote.bid_price
             self.latestTradePrice = api.getLatestTrade(self.symbol).price
             self.latestBarPrice = api.getStockLatestBar(self.symbol)[symbol].close
-            self.percentUpDownBuy = self.__getPercentUpDown(self.previousClosingPrice, self.latestTradePrice)
-            self.percentUpDownSell = self.__getPercentUpDown(self.previousClosingPrice, self.latestTradePrice)
-            self.limitPriceBuy = self.__getLimitPrice(self.latestTradePrice, 'buy')
-            self.limitPriceSell = self.__getLimitPrice(self.latestTradePrice, 'sell')
+            self.percentUpDownBuy = self.__getPercentUpDown(self.previousClosingPrice, self.latestAsk)
+            self.percentUpDownSell = self.__getPercentUpDown(self.previousClosingPrice, self.latestBid)
+            self.limitPriceBuy = self.__getLimitPrice(self.latestAsk, 'buy')
+            self.limitPriceSell = self.__getLimitPrice(self.latestBid, 'sell')
+            api.unSubscribeLiveQuotes(self.symbol)
 
             logData = {
                         'symbol': self.symbol,

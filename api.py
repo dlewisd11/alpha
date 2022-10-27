@@ -1,27 +1,33 @@
 import os
+
+from numpy import empty
 import database as db
 import timekeeper as tk
 import logsetup as ls
+import time
+
+from time import sleep
 
 from alpaca.trading.client import TradingClient
 from alpaca.trading.requests import LimitOrderRequest, GetCalendarRequest
 from alpaca.trading.enums import OrderSide, TimeInForce, OrderStatus
 
 from alpaca.data import StockHistoricalDataClient, StockBarsRequest, StockLatestBarRequest, StockLatestQuoteRequest, StockLatestTradeRequest, TimeFrame
+from alpaca.data.live import StockDataStream
 
 from alpaca.broker import BrokerClient
-
-from time import sleep
 
 
 try:
     apiKeyID = os.getenv('API_KEY_ID')
     secretKey = os.getenv('SECRET_KEY')
     paperAccount = os.getenv('PAPER_ACCOUNT') == 'True'
+    liveData = {}
 
     data_client = StockHistoricalDataClient(apiKeyID, secretKey)
     trading_client = TradingClient(apiKeyID, secretKey, paper=paperAccount)
     broker_client = BrokerClient(apiKeyID, secretKey, sandbox=paperAccount)
+    wss_client = StockDataStream(apiKeyID, secretKey)
 except:
     ls.log.error("Error initializing api, quitting program.")
     ls.log.exception("api")
@@ -58,13 +64,15 @@ def submitOrder(symbol, quantity, limitPrice, orderSide):
 
 def orderFilled(orderID):
     try:
-        for i in range(int(os.getenv('ORDER_WAIT_ITERATIONS'))):    
+        orderWaitIterations = int(os.getenv('ORDER_WAIT_ITERATIONS'))
+        orderWaitSeconds = int(os.getenv('ORDER_WAIT_SECONDS'))
+        for i in range(orderWaitIterations):    
             orderStatus = trading_client.get_order_by_id(order_id=orderID).status
             if orderStatus == OrderStatus.FILLED:
                 return True
             elif orderStatus == OrderStatus.CANCELED:
                 return False
-            sleep(int(os.getenv('ORDER_WAIT_SECONDS')))
+            sleep(orderWaitSeconds)
         return False
     except:
         ls.log.exception("api.orderFilled")
@@ -139,3 +147,46 @@ def getAccountInformation():
         return accountInformation
     except:
         ls.log.exception("api.getAccountInformation")
+
+
+async def liveQuoteDataHandler(data):
+    try:
+        liveData[data.symbol] = data
+    except:
+        ls.log.exception("api.liveQuoteDataHandler")
+
+
+def subscribeLiveQuotes(symbol):
+    try:
+        wss_client.subscribe_quotes(liveQuoteDataHandler, symbol)
+        waitForLiveDataSeconds = int(os.getenv('WAIT_FOR_LIVE_DATA_SECONDS'))
+        startTime = time.time()
+        while symbol not in liveData:
+            elapsedTime = time.time() - startTime
+            if (elapsedTime > waitForLiveDataSeconds):
+                break
+            else:
+                pass
+    except:
+        ls.log.exception("api.subscribeLiveQuotes")
+
+
+def unSubscribeLiveQuotes(symbol):
+    try:
+        wss_client.unsubscribe_quotes(symbol)
+    except:
+        ls.log.exception("api.unSubscribeLiveQuotes")
+
+
+def startLiveDataStream():
+    try:
+        wss_client.run()
+    except:
+        ls.log.exception("api.startLiveDataStream")
+
+
+def stopLiveDataStream():
+    try:
+        wss_client.stop()
+    except:
+        ls.log.exception("api.stopLiveDataStream")

@@ -3,6 +3,7 @@ load_dotenv()
 
 import os
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 
 import logsetup as ls
 import timekeeper as tk
@@ -10,6 +11,7 @@ import database as db
 import api
 
 from asset import Asset
+from time import sleep
 
 
 def main():
@@ -32,11 +34,14 @@ def main():
             ls.log.info(logData)
             
             symbolList = os.getenv('TICKERS').split(',')
+
+            pool = ThreadPoolExecutor(1)
+            pool.submit(api.startLiveDataStream)
+            sleep(5)
             
             if buyEnabled:
 
                 for symbol in symbolList:
-
                     asset = Asset(symbol)
                     rsi = asset.rsi
                     percentUpDownBuy = asset.percentUpDownBuy
@@ -92,6 +97,9 @@ def main():
                         if orderFilled:
                             salePrice = api.getFilledOrderAveragePrice(orderID)
                             updateSoldPosition(tableRecordID, salePrice, orderID)
+
+            api.stopLiveDataStream()
+            pool.shutdown()
 
     except:
         ls.log.exception("alpha.main")
@@ -163,4 +171,6 @@ if __name__ == '__main__':
         main()
     except:
         ls.log.exception("alpha")
+    finally:
+        quit()
 
