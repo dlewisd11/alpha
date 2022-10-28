@@ -74,29 +74,32 @@ def main():
                     purchaseDate = position[3]
                     purchasePrice = float(position[4])
 
-                    asset = Asset(symbol)
-                    limitPriceSell = asset.limitPriceSell
-                    percentUpDownSell = asset.percentUpDownSell
-                    rsi = asset.rsi
-
-                    convertedPurchaseDate = tk.stringToDate(purchaseDate)
-                    sellSideMarginMinimum = float(os.getenv('SELL_SIDE_MARGIN_MINIMUM'))
-                    marginInterestRate = float(os.getenv('MARGIN_INTEREST_RATE'))
-                    rsiUpper = int(os.getenv('RSI_UPPER'))
-
                     elapsedTimeSellCondition = purchaseDate < tk.formattedDate
-                    percentUpDownSellCondition = percentUpDownSell > 0
-                    rsiSellCondition = rsi >= rsiUpper
-                    profitMarginSellCondition = ((limitPriceSell / purchasePrice) - 1) >= (sellSideMarginMinimum + (tk.dateDiff(convertedPurchaseDate, tk.today) * (marginInterestRate / 360)))
 
-                    if(elapsedTimeSellCondition and percentUpDownSellCondition and profitMarginSellCondition and rsiSellCondition and ordersEnabled):
+                    if elapsedTimeSellCondition:
 
-                        orderID = api.submitOrder(symbol, quantity, limitPriceSell, 'sell')
-                        orderFilled = api.orderFilled(orderID)
-                        
-                        if orderFilled:
-                            salePrice = api.getFilledOrderAveragePrice(orderID)
-                            updateSoldPosition(tableRecordID, salePrice, orderID)
+                        asset = Asset(symbol)
+                        limitPriceSell = asset.limitPriceSell
+                        percentUpDownSell = asset.percentUpDownSell
+                        rsi = asset.rsi
+
+                        convertedPurchaseDate = tk.stringToDate(purchaseDate)
+                        sellSideMarginMinimum = float(os.getenv('SELL_SIDE_MARGIN_MINIMUM'))
+                        marginInterestRate = float(os.getenv('MARGIN_INTEREST_RATE'))
+                        rsiUpper = int(os.getenv('RSI_UPPER'))
+
+                        percentUpDownSellCondition = percentUpDownSell > 0
+                        rsiSellCondition = rsi >= rsiUpper
+                        profitMarginSellCondition = ((limitPriceSell / purchasePrice) - 1) >= (sellSideMarginMinimum + (tk.dateDiff(convertedPurchaseDate, tk.today) * (marginInterestRate / 360)))
+
+                        if percentUpDownSellCondition and profitMarginSellCondition and rsiSellCondition and ordersEnabled:
+
+                            orderID = api.submitOrder(symbol, quantity, limitPriceSell, 'sell')
+                            orderFilled = api.orderFilled(orderID)
+                            
+                            if orderFilled:
+                                salePrice = api.getFilledOrderAveragePrice(orderID)
+                                updateSoldPosition(tableRecordID, salePrice, orderID)
 
             api.stopLiveDataStream()
             pool.shutdown()
