@@ -17,10 +17,11 @@ class Asset:
             self.latestBid = api.liveData[self.symbol].bid_price if self.symbol in api.liveData else self.latestQuote.bid_price
             self.latestTradePrice = api.getLatestTrade(self.symbol).price
             self.latestBarPrice = api.getStockLatestBar(self.symbol)[symbol].close
-            self.percentUpDownBuy = self.__getPercentUpDown(self.previousClosingPrice, self.latestAsk)
-            self.percentUpDownSell = self.__getPercentUpDown(self.previousClosingPrice, self.latestBid)
-            self.limitPriceBuy = self.__getLimitPrice(self.latestAsk, 'buy')
-            self.limitPriceSell = self.__getLimitPrice(self.latestBid, 'sell')
+            self.averagePrice = self.__getAveragePrice()
+            self.percentUpDownBuy = self.__getPercentUpDown(self.previousClosingPrice, self.averagePrice)
+            self.percentUpDownSell = self.__getPercentUpDown(self.previousClosingPrice, self.averagePrice)
+            self.limitPriceBuy = self.__getLimitPrice(self.averagePrice, 'buy')
+            self.limitPriceSell = self.__getLimitPrice(self.averagePrice, 'sell')
             api.unSubscribeLiveQuotes(self.symbol)
 
             logData = {
@@ -30,7 +31,8 @@ class Asset:
                         'latestAsk': self.latestAsk,
                         'latestBid': self.latestBid,
                         'latestTradePrice': self.latestTradePrice,
-                        'latestBarPrice' : self.latestBarPrice,
+                        'latestBarPrice': self.latestBarPrice,
+                        'averagePrice': self.averagePrice, 
                         'limitPriceBuy': self.limitPriceBuy,
                         'limitPriceSell': self.limitPriceSell,
                         'percentUpDownBuy': self.percentUpDownBuy,
@@ -110,4 +112,11 @@ class Asset:
                 return float('%.2f' % (currentPrice * (1 - float(limitBuffer))))  
         except:
             ls.log.exception("Asset.__getLimitPrice")
+
+
+    def __getAveragePrice(self):
+        try:
+            return (self.latestAsk + self.latestBid + self.latestBarPrice + self.latestTradePrice) / 4
+        except:
+            ls.log.exception("Asset.__getAveragePrice")
 
