@@ -8,20 +8,20 @@ class Asset:
     def __init__(self, symbol):
         try:
             self.symbol = symbol
-            api.subscribeLiveQuotes(self.symbol)
+            api.subscribeLiveData(self.symbol)
             self.bars = self.__getBars()
             self.previousClosingPrice = self.__getPreviousClose()
             self.rsi = self.__getRSI()
             self.latestQuote = api.getLatestQuote(self.symbol)
-            self.latestAsk = api.liveData[self.symbol].ask_price if self.symbol in api.liveData else self.latestQuote.ask_price
-            self.latestBid = api.liveData[self.symbol].bid_price if self.symbol in api.liveData else self.latestQuote.bid_price
-            self.latestTradePrice = api.getLatestTrade(self.symbol).price
+            self.latestAsk = api.liveQuoteData[self.symbol].ask_price if self.symbol in api.liveQuoteData else self.latestQuote.ask_price
+            self.latestBid = api.liveQuoteData[self.symbol].bid_price if self.symbol in api.liveQuoteData else self.latestQuote.bid_price
+            self.latestTradePrice = api.liveTradeData[self.symbol].price if self.symbol in api.liveTradeData else api.getLatestTrade(self.symbol).price
             self.latestBarPrice = api.getStockLatestBar(self.symbol)[symbol].close
             self.averagePrice = self.__getAveragePrice()
             self.percentUpDownBuy = self.__getPercentUpDown(self.previousClosingPrice, self.averagePrice)
             self.percentUpDownSell = self.__getPercentUpDown(self.previousClosingPrice, self.averagePrice)
-            self.limitPriceBuy = self.__getLimitPrice(self.averagePrice, 'buy')
-            self.limitPriceSell = self.__getLimitPrice(self.averagePrice, 'sell')
+            self.limitPriceBuy = self.__getLimitPrice(self.latestTradePrice if self.symbol in api.liveTradeData else self.averagePrice, 'buy')
+            self.limitPriceSell = self.__getLimitPrice(self.latestTradePrice if self.symbol in api.liveTradeData else self.averagePrice, 'sell')
             api.unSubscribeLiveQuotes(self.symbol)
 
             logData = {

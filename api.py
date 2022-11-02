@@ -22,7 +22,8 @@ try:
     apiKeyID = os.getenv('API_KEY_ID')
     secretKey = os.getenv('SECRET_KEY')
     paperAccount = os.getenv('PAPER_ACCOUNT') == 'True'
-    liveData = {}
+    liveQuoteData = {}
+    liveTradeData = {}
 
     data_client = StockHistoricalDataClient(apiKeyID, secretKey)
     trading_client = TradingClient(apiKeyID, secretKey, paper=paperAccount)
@@ -154,17 +155,25 @@ def getAccountInformation():
 
 async def liveQuoteDataHandler(data):
     try:
-        liveData[data.symbol] = data
+        liveQuoteData[data.symbol] = data
     except:
         ls.log.exception("api.liveQuoteDataHandler")
 
 
-def subscribeLiveQuotes(symbol):
+async def liveTradeDataHandler(data):
+    try:
+        liveTradeData[data.symbol] = data
+    except:
+        ls.log.exception("api.liveTradeDataHandler")
+
+
+def subscribeLiveData(symbol):
     try:
         wss_client.subscribe_quotes(liveQuoteDataHandler, symbol)
+        wss_client.subscribe_trades(liveTradeDataHandler, symbol)
         waitForLiveDataSeconds = int(os.getenv('WAIT_FOR_LIVE_DATA_SECONDS'))
         startTime = time.time()
-        while symbol not in liveData:
+        while symbol not in liveQuoteData or symbol not in liveTradeData:
             elapsedTime = time.time() - startTime
             if (elapsedTime > waitForLiveDataSeconds):
                 break
@@ -177,6 +186,9 @@ def subscribeLiveQuotes(symbol):
 def unSubscribeLiveQuotes(symbol):
     try:
         wss_client.unsubscribe_quotes(symbol)
+        wss_client.unsubscribe_trades(symbol)
+        liveQuoteData = {}
+        liveTradeData = {}
     except:
         ls.log.exception("api.unSubscribeLiveQuotes")
 
