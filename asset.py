@@ -17,6 +17,7 @@ class Asset:
             self.latestBid = api.liveQuoteData[self.symbol].bid_price if self.symbol in api.liveQuoteData else self.latestQuote.bid_price
             self.latestTradePrice = api.liveTradeData[self.symbol].price if self.symbol in api.liveTradeData else api.getLatestTrade(self.symbol).price
             self.latestBarPrice = api.getStockLatestBar(self.symbol)[symbol].close
+            self.secondaryPrice = api.getSecondaryPrice(self.symbol)
             self.averagePrice = self.__getAveragePrice()
             self.percentUpDownBuy = self.__getPercentUpDown(self.previousClosingPrice, self.averagePrice)
             self.percentUpDownSell = self.__getPercentUpDown(self.previousClosingPrice, self.averagePrice)
@@ -32,7 +33,8 @@ class Asset:
                         'latestBid': self.latestBid,
                         'latestTradePrice': self.latestTradePrice,
                         'latestBarPrice': self.latestBarPrice,
-                        'averagePrice': self.averagePrice, 
+                        'secondaryPrice': self.secondaryPrice,
+                        'averagePrice': self.averagePrice,
                         'limitPriceBuy': self.limitPriceBuy,
                         'limitPriceSell': self.limitPriceSell,
                         'percentUpDownBuy': self.percentUpDownBuy,
@@ -116,7 +118,7 @@ class Asset:
 
     def __getAveragePrice(self):
         try:
-            return (self.latestAsk + self.latestBid + self.latestBarPrice + self.latestTradePrice) / 4
+            return (self.latestAsk + self.latestBid + self.latestBarPrice + self.latestTradePrice + self.secondaryPrice) / 5
         except:
             ls.log.exception("Asset.__getAveragePrice")
 

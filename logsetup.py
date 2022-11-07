@@ -3,25 +3,29 @@ import os
 import logging
 import timekeeper as tk
 
-envLogLevel = os.getenv('LOG_LEVEL')
+def decodeLogLevel(logLevel):
+    match logLevel:
+        case 'critical':
+            logLevel = logging.CRITICAL
+        case 'error':
+            logLevel = logging.ERROR
+        case 'warning':
+            logLevel = logging.WARNING
+        case 'info':
+            logLevel = logging.INFO
+        case 'debug':
+            logLevel = logging.DEBUG
+        case _:
+            logLevel = logging.INFO
+    return logLevel
 
-match envLogLevel:
-    case 'critical':
-        logLevel = logging.CRITICAL
-    case 'error':
-        logLevel = logging.ERROR
-    case 'warning':
-        logLevel = logging.WARNING
-    case 'info':
-        logLevel = logging.INFO
-    case 'debug':
-        logLevel = logging.DEBUG
-    case _:
-        logLevel = logging.INFO
+defaultLogLevel = decodeLogLevel(os.getenv('DEFAULT_LOG_LEVEL'))
+applicationLogLevel = decodeLogLevel(os.getenv('APPLICATION_LOG_LEVEL'))
 
 logging.basicConfig(filename="logs/" + os.getenv('LOG_FILE_PREFIX') + "_" + tk.yearMonthString + ".log", 
                     format='%(asctime)s.%(msecs)03d %(message)s', 
                     datefmt='%Y-%d-%m %H:%M:%S', 
-                    level=logLevel)
+                    level=defaultLogLevel)
 
-log = logging.getLogger()
+log = logging.getLogger("applicationLogger")
+log.setLevel(applicationLogLevel)

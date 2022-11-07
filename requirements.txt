@@ -2,3 +2,4 @@ python-dotenv
 mysql-connector-python
 alpaca-trade-api
 alpaca-py
+requests

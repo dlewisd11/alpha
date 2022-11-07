@@ -5,6 +5,7 @@ import database as db
 import timekeeper as tk
 import logsetup as ls
 import time
+import requests
 
 from time import sleep
 
@@ -21,6 +22,7 @@ from alpaca.broker import BrokerClient
 try:
     apiKeyID = os.getenv('API_KEY_ID')
     secretKey = os.getenv('SECRET_KEY')
+    fmpApiKey = os.getenv('FMP_API_KEY')
     paperAccount = os.getenv('PAPER_ACCOUNT') == 'True'
     liveQuoteData = {}
     liveTradeData = {}
@@ -205,3 +207,14 @@ def stopLiveDataStream():
         wss_client.stop()
     except:
         ls.log.exception("api.stopLiveDataStream")
+
+
+def getSecondaryPrice(symbol):
+    try:
+        response = requests.get('https://financialmodelingprep.com/api/v3/quote-short/' + symbol + '?apikey=' + fmpApiKey)
+        response = response.json()
+        price = response[0]['price']
+        return price
+    except:
+        ls.log.exception("api.getSecondaryPricing")
+
