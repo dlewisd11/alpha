@@ -37,22 +37,46 @@ except:
     quit()
 
 
-def isMarketOpen():
+def getMarketClock():
     try:
-        return trading_client.get_clock().is_open
+        return trading_client.get_clock()
     except:
-        ls.log.exception("api.isMarketOpen")
+        ls.log.exception("api.getMarketClock")
+
+
+def decodeTimeInForce(timeInForce):
+    try:
+        match timeInForce:
+            case 'fok':
+                timeInForce = TimeInForce.FOK
+            case 'day':
+                timeInForce = TimeInForce.DAY
+            case 'cls':
+                timeInForce = TimeInForce.CLS
+            case 'gtc':
+                timeInForce = TimeInForce.GTC
+            case 'ioc':
+                timeInForce = TimeInForce.IOC
+            case 'opg':
+                timeInForce = TimeInForce.OPG
+            case _:
+                timeInForce = TimeInForce.FOK
+        return timeInForce
+    except:
+        ls.log.exception("api.decodeTimeInForce")
 
 
 def submitOrder(symbol, quantity, limitPrice, orderSide):
 
     try:
+        timeInForce = decodeTimeInForce(os.getenv('TIME_IN_FORCE'))
+
         limit_order_data = LimitOrderRequest(
                             side=OrderSide.BUY if orderSide == 'buy' else OrderSide.SELL,
                             symbol=symbol,
                             qty=quantity,
                             limit_price=limitPrice,
-                            time_in_force=TimeInForce.FOK
+                            time_in_force=timeInForce
         )
 
         orderID = str(trading_client.submit_order(order_data=limit_order_data).id)
@@ -69,6 +93,7 @@ def orderFilled(orderID):
     try:
         orderWaitIterations = int(os.getenv('ORDER_WAIT_ITERATIONS'))
         orderWaitSeconds = int(os.getenv('ORDER_WAIT_SECONDS'))
+        
         for i in range(orderWaitIterations):    
             orderStatus = trading_client.get_order_by_id(order_id=orderID).status
             if orderStatus == OrderStatus.FILLED:
@@ -78,7 +103,9 @@ def orderFilled(orderID):
                 ls.log.info(str("order id " + orderID + " canceled"))
                 return False
             sleep(orderWaitSeconds)
-        ls.log.info(str("order id " + orderID + " not filled"))
+
+        trading_client.cancel_order_by_id(order_id=orderID)
+        ls.log.info(str("order id " + orderID + " not filled, canceled"))
         return False
     except:
         ls.log.exception("api.orderFilled")
@@ -177,7 +204,7 @@ def subscribeLiveData(symbol):
         startTime = time.time()
         while symbol not in liveQuoteData or symbol not in liveTradeData:
             elapsedTime = time.time() - startTime
-            if (elapsedTime > waitForLiveDataSeconds):
+            if (elapsedTime >= waitForLiveDataSeconds):
                 break
             else:
                 pass
@@ -185,7 +212,7 @@ def subscribeLiveData(symbol):
         ls.log.exception("api.subscribeLiveQuotes")
 
 
-def unSubscribeLiveQuotes(symbol):
+def unSubscribeLiveData(symbol):
     try:
         wss_client.unsubscribe_quotes(symbol)
         wss_client.unsubscribe_trades(symbol)

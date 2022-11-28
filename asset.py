@@ -8,22 +8,28 @@ class Asset:
     def __init__(self, symbol):
         try:
             self.symbol = symbol
+            
             api.subscribeLiveData(self.symbol)
+            
             self.bars = self.__getBars()
             self.previousClosingPrice = self.__getPreviousClose()
             self.rsi = self.__getRSI()
             self.latestQuote = api.getLatestQuote(self.symbol)
-            self.latestAsk = api.liveQuoteData[self.symbol].ask_price if self.symbol in api.liveQuoteData else self.latestQuote.ask_price
-            self.latestBid = api.liveQuoteData[self.symbol].bid_price if self.symbol in api.liveQuoteData else self.latestQuote.bid_price
-            self.latestTradePrice = api.liveTradeData[self.symbol].price if self.symbol in api.liveTradeData else api.getLatestTrade(self.symbol).price
+            liveQuoteDataPresent = self.symbol in api.liveQuoteData
+            liveTradeDataPresent = self.symbol in api.liveTradeData
+            self.latestAsk = api.liveQuoteData[self.symbol].ask_price if liveQuoteDataPresent else self.latestQuote.ask_price
+            self.latestBid = api.liveQuoteData[self.symbol].bid_price if liveQuoteDataPresent else self.latestQuote.bid_price
+            self.latestTradePrice = api.liveTradeData[self.symbol].price if liveTradeDataPresent else api.getLatestTrade(self.symbol).price
             self.latestBarPrice = api.getStockLatestBar(self.symbol)[symbol].close
             self.secondaryPrice = api.getSecondaryPrice(self.symbol)
             self.averagePrice = self.__getAveragePrice()
-            self.percentUpDownBuy = self.__getPercentUpDown(self.previousClosingPrice, self.averagePrice)
-            self.percentUpDownSell = self.__getPercentUpDown(self.previousClosingPrice, self.averagePrice)
-            self.limitPriceBuy = self.__getLimitPrice(self.latestTradePrice if self.symbol in api.liveTradeData else self.averagePrice, 'buy')
-            self.limitPriceSell = self.__getLimitPrice(self.latestTradePrice if self.symbol in api.liveTradeData else self.averagePrice, 'sell')
-            api.unSubscribeLiveQuotes(self.symbol)
+            self.averagePriceBuy = self.__getAveragePriceBuy()
+            self.averagePriceSell = self.__getAveragePriceSell()
+            self.percentUpDown = self.__getPercentUpDown(self.previousClosingPrice, self.averagePrice)
+            self.limitPriceBuy = self.__getLimitPrice(self.latestTradePrice if liveTradeDataPresent else self.averagePriceBuy, 'buy')
+            self.limitPriceSell = self.__getLimitPrice(self.latestTradePrice if liveTradeDataPresent else self.averagePriceSell, 'sell')
+            
+            api.unSubscribeLiveData(self.symbol)
 
             logData = {
                         'symbol': self.symbol,
@@ -35,10 +41,11 @@ class Asset:
                         'latestBarPrice': self.latestBarPrice,
                         'secondaryPrice': self.secondaryPrice,
                         'averagePrice': self.averagePrice,
+                        'averagePriceBuy': self.averagePriceBuy,
+                        'averagePriceSell': self.averagePriceSell,
                         'limitPriceBuy': self.limitPriceBuy,
                         'limitPriceSell': self.limitPriceSell,
-                        'percentUpDownBuy': self.percentUpDownBuy,
-                        'percentUpDownSell': self.percentUpDownSell
+                        'percentUpDown': self.percentUpDown
             }
 
             ls.log.info(logData)
@@ -122,3 +129,16 @@ class Asset:
         except:
             ls.log.exception("Asset.__getAveragePrice")
 
+
+    def __getAveragePriceBuy(self):
+        try:
+            return (self.latestAsk + self.latestBarPrice + self.latestTradePrice + self.secondaryPrice) / 4
+        except:
+            ls.log.exception("Asset.__getAveragePriceBuy")
+
+
+    def __getAveragePriceSell(self):
+        try:
+            return (self.latestBid + self.latestBarPrice + self.latestTradePrice + self.secondaryPrice) / 4
+        except:
+            ls.log.exception("Asset.__getAveragePriceSell")

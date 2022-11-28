@@ -19,7 +19,13 @@ def main():
     try:
         ls.log.info("BEGIN")
 
-        if api.isMarketOpen():
+        weekDayCondition = tk.weekDay != 5 and tk.weekDay != 6
+        marketClock = api.getMarketClock()
+        marketOpenCondition = marketClock.is_open
+        marketCloseCondition = tk.hour == (marketClock.next_close.hour - 1)
+        runUnconditionally = os.getenv('RUN_UNCONDITIONALLY') == 'True'
+
+        if (weekDayCondition and marketOpenCondition and marketCloseCondition) or runUnconditionally:
 
             buyEnabled = os.getenv('BUY_ENABLED') == 'True'
             sellEnabled = os.getenv('SELL_ENABLED') == 'True'
@@ -44,12 +50,12 @@ def main():
                 for symbol in symbolList:
                     asset = Asset(symbol)
                     rsi = asset.rsi
-                    percentUpDownBuy = asset.percentUpDownBuy
+                    percentUpDown = asset.percentUpDown
                     limitPriceBuy = asset.limitPriceBuy
                     rsiLower = int(os.getenv('RSI_LOWER'))
 
                     #buy
-                    if percentUpDownBuy <= 0 and rsi <= rsiLower:
+                    if percentUpDown <= 0 and rsi <= rsiLower:
 
                         quantity = getOrderQuantity(symbol, limitPriceBuy)
                             
@@ -80,7 +86,7 @@ def main():
 
                         asset = Asset(symbol)
                         limitPriceSell = asset.limitPriceSell
-                        percentUpDownSell = asset.percentUpDownSell
+                        percentUpDown = asset.percentUpDown
                         rsi = asset.rsi
 
                         convertedPurchaseDate = tk.stringToDate(purchaseDate)
@@ -88,11 +94,11 @@ def main():
                         marginInterestRate = float(os.getenv('MARGIN_INTEREST_RATE'))
                         rsiUpper = int(os.getenv('RSI_UPPER'))
 
-                        percentUpDownSellCondition = percentUpDownSell > 0
+                        percentUpDownCondition = percentUpDown > 0
                         rsiSellCondition = rsi >= rsiUpper
                         profitMarginSellCondition = ((limitPriceSell / purchasePrice) - 1) >= (sellSideMarginMinimum + (tk.dateDiff(convertedPurchaseDate, tk.today) * (marginInterestRate / 360)))
 
-                        if percentUpDownSellCondition and profitMarginSellCondition and rsiSellCondition and ordersEnabled:
+                        if percentUpDownCondition and profitMarginSellCondition and rsiSellCondition and ordersEnabled:
 
                             orderID = api.submitOrder(symbol, quantity, limitPriceSell, 'sell')
                             orderFilled = api.orderFilled(orderID)
@@ -103,6 +109,9 @@ def main():
 
             api.stopLiveDataStream()
             pool.shutdown()
+        
+        else:
+            ls.log.info("Run conditions not met. Today is a weekend day, the market is not open, or the market is not closing in the next hour.")
 
     except:
         ls.log.exception("alpha.main")

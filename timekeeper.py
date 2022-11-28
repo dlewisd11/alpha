@@ -12,6 +12,8 @@ try:
     formattedDate = today.strftime("%Y-%m-%d")
     yearMonthString = today.strftime("%Y_%m")
     currentTime = now.strftime("%H:%M")
+    weekDay = today.weekday()
+    hour = today.hour
 
 
     def stringToDate(dateString):
