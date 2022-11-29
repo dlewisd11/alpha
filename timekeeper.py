@@ -5,15 +5,15 @@ import logsetup as ls
 
 
 try:
-    now = datetime.now(pytz.timezone('US/Eastern'))
-    nowMinus15Minutes = now - timedelta(minutes=15)
-    today = now.today()
-    todayMinus30Days = today - timedelta(days=30)
-    formattedDate = today.strftime("%Y-%m-%d")
-    yearMonthString = today.strftime("%Y_%m")
-    currentTime = now.strftime("%H:%M")
-    weekDay = today.weekday()
-    hour = today.hour
+    currentDateTime = datetime.now(pytz.timezone('America/New_York'))
+    currentDate = currentDateTime.today()
+    nowMinus15Minutes = currentDateTime - timedelta(minutes=15)
+    todayMinus30Days = currentDateTime - timedelta(days=30)
+    formattedDate = currentDateTime.strftime("%Y-%m-%d")
+    yearMonthString = currentDateTime.strftime("%Y_%m")
+    currentTime = currentDateTime.strftime("%H:%M")
+    weekDay = currentDateTime.weekday()
+    hour = currentDateTime.hour
 
 
     def stringToDate(dateString):

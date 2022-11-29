@@ -25,6 +25,17 @@ def main():
         marketCloseCondition = tk.hour == (marketClock.next_close.hour - 1)
         runUnconditionally = os.getenv('RUN_UNCONDITIONALLY') == 'True'
 
+        logData = {
+            'weekDayCondition': weekDayCondition,
+            'marketOpenCondition': marketOpenCondition,
+            'marketCloseCondition': marketCloseCondition,
+            'runUnconditionally': runUnconditionally,
+            'tkHour': tk.hour,
+            'marketCloseHour': marketClock.next_close.hour
+        }
+
+        ls.log.info(logData)
+
         if (weekDayCondition and marketOpenCondition and marketCloseCondition) or runUnconditionally:
 
             buyEnabled = os.getenv('BUY_ENABLED') == 'True'
@@ -44,72 +55,77 @@ def main():
             pool = ThreadPoolExecutor(1)
             pool.submit(api.startLiveDataStream)
             sleep(5)
-            
-            if buyEnabled:
 
-                for symbol in symbolList:
-                    asset = Asset(symbol)
-                    rsi = asset.rsi
-                    percentUpDown = asset.percentUpDown
-                    limitPriceBuy = asset.limitPriceBuy
-                    rsiLower = int(os.getenv('RSI_LOWER'))
+            try:
+                if buyEnabled:
 
-                    #buy
-                    if percentUpDown <= 0 and rsi <= rsiLower:
-
-                        quantity = getOrderQuantity(symbol, limitPriceBuy)
-                            
-                        if quantity > 0 and ordersEnabled:
-                            orderID = api.submitOrder(symbol, quantity, limitPriceBuy, 'buy')
-                            orderFilled = api.orderFilled(orderID)
-                            
-                            if orderFilled:
-                                purchasePrice = api.getFilledOrderAveragePrice(orderID)
-                                insertBuyRecord(symbol, quantity, purchasePrice, orderID)
-
-            #sell
-            if sellEnabled:
-
-                positions = getOpenPositionsEligibleForSale()
-                
-                for position in positions:
-
-                    tableRecordID = position[0]
-                    symbol = position[1]
-                    quantity = float(str(position[2]))
-                    purchaseDate = position[3]
-                    purchasePrice = float(position[4])
-
-                    elapsedTimeSellCondition = purchaseDate < tk.formattedDate
-
-                    if elapsedTimeSellCondition:
-
+                    for symbol in symbolList:
                         asset = Asset(symbol)
-                        limitPriceSell = asset.limitPriceSell
-                        percentUpDown = asset.percentUpDown
                         rsi = asset.rsi
+                        percentUpDown = asset.percentUpDown
+                        limitPriceBuy = asset.limitPriceBuy
+                        rsiLower = int(os.getenv('RSI_LOWER'))
 
-                        convertedPurchaseDate = tk.stringToDate(purchaseDate)
-                        sellSideMarginMinimum = float(os.getenv('SELL_SIDE_MARGIN_MINIMUM'))
-                        marginInterestRate = float(os.getenv('MARGIN_INTEREST_RATE'))
-                        rsiUpper = int(os.getenv('RSI_UPPER'))
+                        #buy
+                        if percentUpDown <= 0 and rsi <= rsiLower:
 
-                        percentUpDownCondition = percentUpDown > 0
-                        rsiSellCondition = rsi >= rsiUpper
-                        profitMarginSellCondition = ((limitPriceSell / purchasePrice) - 1) >= (sellSideMarginMinimum + (tk.dateDiff(convertedPurchaseDate, tk.today) * (marginInterestRate / 360)))
+                            quantity = getOrderQuantity(symbol, limitPriceBuy)
+                                
+                            if quantity > 0 and ordersEnabled:
+                                orderID = api.submitOrder(symbol, quantity, limitPriceBuy, 'buy')
+                                orderFilled = api.orderFilled(orderID)
+                                
+                                if orderFilled:
+                                    purchasePrice = api.getFilledOrderAveragePrice(orderID)
+                                    insertBuyRecord(symbol, quantity, purchasePrice, orderID)
 
-                        if percentUpDownCondition and profitMarginSellCondition and rsiSellCondition and ordersEnabled:
+                #sell
+                if sellEnabled:
 
-                            orderID = api.submitOrder(symbol, quantity, limitPriceSell, 'sell')
-                            orderFilled = api.orderFilled(orderID)
-                            
-                            if orderFilled:
-                                salePrice = api.getFilledOrderAveragePrice(orderID)
-                                updateSoldPosition(tableRecordID, salePrice, orderID)
+                    positions = getOpenPositionsEligibleForSale()
+                    
+                    for position in positions:
 
-            api.stopLiveDataStream()
-            pool.shutdown()
-        
+                        tableRecordID = position[0]
+                        symbol = position[1]
+                        quantity = float(str(position[2]))
+                        purchaseDate = position[3]
+                        purchasePrice = float(position[4])
+
+                        elapsedTimeSellCondition = purchaseDate < tk.formattedDate
+
+                        if elapsedTimeSellCondition:
+
+                            asset = Asset(symbol)
+                            limitPriceSell = asset.limitPriceSell
+                            percentUpDown = asset.percentUpDown
+                            rsi = asset.rsi
+
+                            convertedPurchaseDate = tk.stringToDate(purchaseDate)
+                            sellSideMarginMinimum = float(os.getenv('SELL_SIDE_MARGIN_MINIMUM'))
+                            marginInterestRate = float(os.getenv('MARGIN_INTEREST_RATE'))
+                            rsiUpper = int(os.getenv('RSI_UPPER'))
+
+                            percentUpDownCondition = percentUpDown > 0
+                            rsiSellCondition = rsi >= rsiUpper
+                            profitMarginSellCondition = ((limitPriceSell / purchasePrice) - 1) >= (sellSideMarginMinimum + (tk.dateDiff(convertedPurchaseDate, tk.currentDate) * (marginInterestRate / 360)))
+
+                            if percentUpDownCondition and profitMarginSellCondition and rsiSellCondition and ordersEnabled:
+
+                                orderID = api.submitOrder(symbol, quantity, limitPriceSell, 'sell')
+                                orderFilled = api.orderFilled(orderID)
+                                
+                                if orderFilled:
+                                    salePrice = api.getFilledOrderAveragePrice(orderID)
+                                    updateSoldPosition(tableRecordID, salePrice, orderID)
+
+            except:
+                ls.log.exception("alpha.main inner")
+            
+            finally:
+                api.stopLiveDataStream()
+                pool.shutdown()
+
         else:
             ls.log.info("Run conditions not met. Today is a weekend day, the market is not open, or the market is not closing in the next hour.")
 

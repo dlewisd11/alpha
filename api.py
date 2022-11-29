@@ -42,6 +42,7 @@ def getMarketClock():
         return trading_client.get_clock()
     except:
         ls.log.exception("api.getMarketClock")
+        quit()
 
 
 def decodeTimeInForce(timeInForce):
@@ -122,7 +123,7 @@ def getFilledOrderAveragePrice(orderID):
 def getTradingCalendar():
     try:
         calendarStartDate = tk.todayMinus30Days
-        calendarRequest = GetCalendarRequest(start=calendarStartDate, end=tk.today)
+        calendarRequest = GetCalendarRequest(start=calendarStartDate, end=tk.currentDateTime)
         tradingCalendar = trading_client.get_calendar(calendarRequest)
         return tradingCalendar
     except:
