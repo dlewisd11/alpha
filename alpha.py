@@ -25,17 +25,6 @@ def main():
         marketCloseCondition = tk.hour == (marketClock.next_close.hour - 1)
         runUnconditionally = os.getenv('RUN_UNCONDITIONALLY') == 'True'
 
-        logData = {
-            'weekDayCondition': weekDayCondition,
-            'marketOpenCondition': marketOpenCondition,
-            'marketCloseCondition': marketCloseCondition,
-            'runUnconditionally': runUnconditionally,
-            'tkHour': tk.hour,
-            'marketCloseHour': marketClock.next_close.hour
-        }
-
-        ls.log.info(logData)
-
         if (weekDayCondition and marketOpenCondition and marketCloseCondition) or runUnconditionally:
 
             buyEnabled = os.getenv('BUY_ENABLED') == 'True'
