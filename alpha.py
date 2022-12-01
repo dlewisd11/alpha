@@ -46,6 +46,12 @@ def main():
             sleep(5)
 
             try:
+
+                for symbol in symbolList:
+                    api.subscribeLiveData(symbol)
+
+                sleep(int(os.getenv('WAIT_FOR_LIVE_DATA_SECONDS')))
+
                 if buyEnabled:
 
                     for symbol in symbolList:
@@ -68,8 +74,17 @@ def main():
                                     purchasePrice = api.getFilledOrderAveragePrice(orderID)
                                     insertBuyRecord(symbol, quantity, purchasePrice, orderID)
 
+                        api.unSubscribeLiveData(symbol)
+
                 #sell
                 if sellEnabled:
+
+                    distinctSymbolsEligibleForSale = getDistinctSymbolsEligibleForSale()
+                    for record in distinctSymbolsEligibleForSale:
+                        symbol = record[0]
+                        api.subscribeLiveData(symbol)
+
+                    sleep(int(os.getenv('WAIT_FOR_LIVE_DATA_SECONDS')))
 
                     positions = getOpenPositionsEligibleForSale()
                     
@@ -107,6 +122,10 @@ def main():
                                 if orderFilled:
                                     salePrice = api.getFilledOrderAveragePrice(orderID)
                                     updateSoldPosition(tableRecordID, salePrice, orderID)
+
+                    for record in distinctSymbolsEligibleForSale:
+                        symbol = record[0]
+                        api.unSubscribeLiveData(symbol)
 
             except:
                 ls.log.exception("alpha.main inner")
@@ -181,6 +200,15 @@ def getOpenPositionsEligibleForSale():
         return positions
     except:
         ls.log.exception("alpha.getOpenPositionsEligibleForSale")
+
+
+def getDistinctSymbolsEligibleForSale():
+    try:
+        query = "SELECT DISTINCT symbol FROM " + db.dbTableName + " WHERE ISNULL(saleorderid) AND ISNULL(saledate) AND ISNULL(saleprice)"
+        symbols = db.runQueryAndReturnResults(query, ())
+        return symbols
+    except:
+        ls.log.exception("alpha.getDistinctSymbolsEligibleForSale")
 
 
 if __name__ == '__main__':

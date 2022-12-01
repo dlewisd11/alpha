@@ -7,10 +7,7 @@ class Asset:
 
     def __init__(self, symbol):
         try:
-            self.symbol = symbol
-            
-            api.subscribeLiveData(self.symbol)
-            
+            self.symbol = symbol            
             self.bars = self.__getBars()
             self.previousClosingPrice = self.__getPreviousClose()
             self.rsi = self.__getRSI()
@@ -28,8 +25,6 @@ class Asset:
             self.percentUpDown = self.__getPercentUpDown(self.previousClosingPrice, self.averagePrice)
             self.limitPriceBuy = self.__getLimitPrice(self.latestTradePrice if liveTradeDataPresent else self.averagePriceBuy, 'buy')
             self.limitPriceSell = self.__getLimitPrice(self.latestTradePrice if liveTradeDataPresent else self.averagePriceSell, 'sell')
-            
-            api.unSubscribeLiveData(self.symbol)
 
             logData = {
                         'symbol': self.symbol,

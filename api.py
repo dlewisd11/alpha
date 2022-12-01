@@ -1,10 +1,8 @@
 import os
 
-from numpy import empty
 import database as db
 import timekeeper as tk
 import logsetup as ls
-import time
 import requests
 
 from time import sleep
@@ -201,14 +199,6 @@ def subscribeLiveData(symbol):
     try:
         wss_client.subscribe_quotes(liveQuoteDataHandler, symbol)
         wss_client.subscribe_trades(liveTradeDataHandler, symbol)
-        waitForLiveDataSeconds = int(os.getenv('WAIT_FOR_LIVE_DATA_SECONDS'))
-        startTime = time.time()
-        while symbol not in liveQuoteData or symbol not in liveTradeData:
-            elapsedTime = time.time() - startTime
-            if (elapsedTime >= waitForLiveDataSeconds):
-                break
-            else:
-                pass
     except:
         ls.log.exception("api.subscribeLiveQuotes")
 
@@ -217,8 +207,8 @@ def unSubscribeLiveData(symbol):
     try:
         wss_client.unsubscribe_quotes(symbol)
         wss_client.unsubscribe_trades(symbol)
-        liveQuoteData = {}
-        liveTradeData = {}
+        if symbol in liveQuoteData: del liveQuoteData[symbol]
+        if symbol in liveTradeData: del liveTradeData[symbol]
     except:
         ls.log.exception("api.unSubscribeLiveQuotes")
 
