@@ -146,15 +146,12 @@ def main():
         
 def getOrderQuantity(symbol, limitPrice):
     try:
-        query = "SELECT COUNT(*) FROM " + db.dbTableName + " WHERE ISNULL(saleorderid) AND ISNULL(saledate) AND ISNULL(saleprice) AND symbol = %s"
-        values = (symbol,)
-        numberOpenPositions = db.runQueryAndReturnResults(query, values)[0][0]
-
         enduranceDays = int(os.getenv('ENDURANCE_DAYS'))
-        enduranceDaysRemaining = enduranceDays - numberOpenPositions
 
         allowMarginTrading = os.getenv('ALLOW_MARGIN_TRADING') == 'True'
         accountInformation = api.getAccountInformation()
+
+        theoreticalOrderCost = float(accountInformation.equity) / enduranceDays
 
         if allowMarginTrading:
             activePercentageBuyingPower = float(os.getenv('ACTIVE_PERCENTAGE_BUYING_POWER'))
@@ -164,12 +161,14 @@ def getOrderQuantity(symbol, limitPrice):
         else:
             activeBuyingPower = float(accountInformation.cash)
 
-        if(enduranceDaysRemaining > 0):
-            orderQuantity = int((activeBuyingPower / enduranceDaysRemaining) / limitPrice)
+        if (activeBuyingPower / theoreticalOrderCost) > 0:
+            orderQuantity = int(theoreticalOrderCost / limitPrice)
             return orderQuantity
+        
         else:
             orderQuantity = int(activeBuyingPower / limitPrice)
             return orderQuantity
+
     except:
         ls.log.exception("alpha.getOrderQuantity")
 
