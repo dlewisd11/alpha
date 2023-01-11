@@ -30,6 +30,7 @@ class Asset:
                         'symbol': self.symbol,
                         'previousClosingPrice': self.previousClosingPrice,
                         'rsi': self.rsi,
+                        'rsiPeriod': rsiPeriod,
                         'latestAsk': self.latestAsk,
                         'latestBid': self.latestBid,
                         'latestTradePrice': self.latestTradePrice,
