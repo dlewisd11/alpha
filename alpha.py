@@ -55,7 +55,8 @@ def main():
                 if buyEnabled:
 
                     for symbol in symbolList:
-                        asset = Asset(symbol)
+                        rsiPeriod = int(os.getenv('RSI_PERIOD_BUY'))
+                        asset = Asset(symbol, rsiPeriod)
                         rsi = asset.rsi
                         percentUpDown = asset.percentUpDown
                         limitPriceBuy = asset.limitPriceBuy
@@ -100,7 +101,8 @@ def main():
 
                         if elapsedTimeSellCondition:
 
-                            asset = Asset(symbol)
+                            rsiPeriod = int(os.getenv('RSI_PERIOD_SELL'))
+                            asset = Asset(symbol, rsiPeriod)
                             limitPriceSell = asset.limitPriceSell
                             percentUpDown = asset.percentUpDown
                             rsi = asset.rsi

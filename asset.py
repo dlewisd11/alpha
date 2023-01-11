@@ -5,12 +5,12 @@ import api
 
 class Asset:
 
-    def __init__(self, symbol):
+    def __init__(self, symbol, rsiPeriod):
         try:
             self.symbol = symbol            
             self.bars = self.__getBars()
             self.previousClosingPrice = self.__getPreviousClose()
-            self.rsi = self.__getRSI()
+            self.rsi = self.__getRSI(rsiPeriod)
             self.latestQuote = api.getLatestQuote(self.symbol)
             liveQuoteDataPresent = self.symbol in api.liveQuoteData
             liveTradeDataPresent = self.symbol in api.liveTradeData
@@ -70,12 +70,11 @@ class Asset:
             ls.log.exception("Asset.__getPreviousClose")
 
 
-    def __getRSI(self):
+    def __getRSI(self, rsiPeriod):
         try:
             gain = 0
             loss = 0
             barsData = self.bars.data[self.symbol]
-            rsiPeriod = int(os.getenv('RSI_PERIOD'))
 
             for i in range(rsiPeriod):
                 first = barsData[len(barsData)-2-i].close 
