@@ -87,6 +87,8 @@ def main():
 
                     sleep(int(os.getenv('WAIT_FOR_LIVE_DATA_SECONDS')))
 
+                    accountInformation = api.getAccountInformation()
+                    cash = float(accountInformation.cash)
                     positions = getOpenPositionsEligibleForSale()
                     
                     for position in positions:
@@ -110,11 +112,12 @@ def main():
                             convertedPurchaseDate = tk.stringToDate(purchaseDate)
                             sellSideMarginMinimum = float(os.getenv('SELL_SIDE_MARGIN_MINIMUM'))
                             marginInterestRate = float(os.getenv('MARGIN_INTEREST_RATE'))
+                            marginInterestCoverage = 0 if cash >= 0 else tk.dateDiff(convertedPurchaseDate, tk.currentDate) * (marginInterestRate / 360)
                             rsiUpper = int(os.getenv('RSI_UPPER'))
 
                             percentUpDownCondition = percentUpDown > 0
                             rsiSellCondition = rsi >= rsiUpper
-                            profitMarginSellCondition = ((limitPriceSell / purchasePrice) - 1) >= (sellSideMarginMinimum + (tk.dateDiff(convertedPurchaseDate, tk.currentDate) * (marginInterestRate / 360)))
+                            profitMarginSellCondition = ((limitPriceSell / purchasePrice) - 1) >= (sellSideMarginMinimum + marginInterestCoverage)
 
                             if percentUpDownCondition and profitMarginSellCondition and rsiSellCondition and ordersEnabled:
 
