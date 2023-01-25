@@ -65,7 +65,7 @@ def main():
                         #buy
                         if percentUpDown <= 0 and rsi <= rsiLower:
 
-                            quantity = getOrderQuantity(symbol, limitPriceBuy)
+                            quantity = getBuyOrderQuantity(symbol, limitPriceBuy)
                                 
                             if quantity > 0 and ordersEnabled:
                                 orderID = api.submitOrder(symbol, quantity, limitPriceBuy, 'buy')
@@ -146,22 +146,24 @@ def main():
         ls.log.info("END")
 
         
-def getOrderQuantity(symbol, limitPrice):
+def getBuyOrderQuantity(symbol, limitPrice):
     try:
         enduranceDays = int(os.getenv('ENDURANCE_DAYS'))
 
         allowMarginTrading = os.getenv('ALLOW_MARGIN_TRADING') == 'True'
         accountInformation = api.getAccountInformation()
-
-        theoreticalOrderCost = float(accountInformation.equity) / enduranceDays
+        equity = float(accountInformation.equity)
+        cash = float(accountInformation.cash)
+        longMarketValue = float(accountInformation.long_market_value)
 
         if allowMarginTrading:
-            activePercentageBuyingPower = float(os.getenv('ACTIVE_PERCENTAGE_BUYING_POWER'))
-            buyingPower = float(accountInformation.buying_power)
-            activeBuyingPower = buyingPower * activePercentageBuyingPower
+            activeMarginPercentage = float(os.getenv('ACTIVE_MARGIN_PERCENTAGE'))
+            activeCapital = equity * (1 + activeMarginPercentage)
+            theoreticalOrderCost = activeCapital / enduranceDays
+            activeBuyingPower = activeCapital - longMarketValue
         
         else:
-            activeBuyingPower = float(accountInformation.cash)
+            activeBuyingPower = cash
 
         if (activeBuyingPower / theoreticalOrderCost) > 0:
             orderQuantity = int(theoreticalOrderCost / limitPrice)
@@ -169,10 +171,10 @@ def getOrderQuantity(symbol, limitPrice):
         
         else:
             orderQuantity = int(activeBuyingPower / limitPrice)
-            return orderQuantity
+            return orderQuantity if orderQuantity > 0 else 0
 
     except:
-        ls.log.exception("alpha.getOrderQuantity")
+        ls.log.exception("alpha.getBuyOrderQuantity")
 
 
 def insertBuyRecord(symbol, quantity, purchasePrice, orderID):
