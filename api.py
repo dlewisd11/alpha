@@ -20,7 +20,8 @@ from alpaca.broker import BrokerClient
 try:
     apiKeyID = os.getenv('API_KEY_ID')
     secretKey = os.getenv('SECRET_KEY')
-    fmpApiKey = os.getenv('FMP_API_KEY')
+    secondaryDataSourceApiUrl = os.getenv('SECONDARY_DATA_SOURCE_API_URL')
+    secondaryDataSourceApiKey = os.getenv('SECONDARY_DATA_SOURCE_API_KEY')
     paperAccount = os.getenv('PAPER_ACCOUNT') == 'True'
     liveQuoteData = {}
     liveTradeData = {}
@@ -229,9 +230,12 @@ def stopLiveDataStream():
 
 def getSecondaryPrice(symbol):
     try:
-        response = requests.get('https://financialmodelingprep.com/api/v3/quote-short/' + symbol + '?apikey=' + fmpApiKey)
-        response = response.json()
-        price = response[0]['price']
+        url = secondaryDataSourceApiUrl.replace('^{SYMBOL}', symbol).replace('^{KEY}', secondaryDataSourceApiKey)
+        response = requests.get(url)
+        if not response.ok:
+            raise Exception("Error contacting secondary data source api.")
+        jsonResponse = response.json()
+        price = jsonResponse[0]['price']
         return price
     except:
         ls.log.exception("api.getSecondaryPricing")
