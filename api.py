@@ -1,6 +1,5 @@
 import os
 
-import database as db
 import timekeeper as tk
 import logsetup as ls
 import requests
