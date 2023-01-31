@@ -153,20 +153,14 @@ def getBuyOrderQuantity(symbol, limitPrice):
     try:
         enduranceDays = int(os.getenv('ENDURANCE_DAYS'))
 
-        allowMarginTrading = os.getenv('ALLOW_MARGIN_TRADING') == 'True'
         accountInformation = api.getAccountInformation()
         equity = float(accountInformation.equity)
-        cash = float(accountInformation.cash)
         longMarketValue = float(accountInformation.long_market_value)
 
-        if allowMarginTrading:
-            activeMarginPercentage = float(os.getenv('ACTIVE_MARGIN_PERCENTAGE'))
-            activeCapital = equity * (1 + activeMarginPercentage)
-            theoreticalOrderCost = activeCapital / enduranceDays
-            activeBuyingPower = activeCapital - longMarketValue
-        
-        else:
-            activeBuyingPower = cash
+        activeMarginPercentage = float(os.getenv('ACTIVE_MARGIN_PERCENTAGE'))
+        activeCapital = equity * (1 + activeMarginPercentage)
+        theoreticalOrderCost = activeCapital / enduranceDays
+        activeBuyingPower = activeCapital - longMarketValue
 
         if (activeBuyingPower / theoreticalOrderCost) > 0:
             orderQuantity = int(theoreticalOrderCost / limitPrice)
