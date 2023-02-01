@@ -9,6 +9,8 @@ try:
     currentDate = currentDateTime.today()
     nowMinus15Minutes = currentDateTime - timedelta(minutes=15)
     todayMinus30Days = currentDateTime - timedelta(days=30)
+    todayMinus1Year = currentDateTime - timedelta(days=365)
+    todayMinus1YearFormatted = todayMinus1Year.strftime("%Y-%m-%d")
     formattedDate = currentDateTime.strftime("%Y-%m-%d")
     yearMonthString = currentDateTime.strftime("%Y_%m")
     currentTime = currentDateTime.strftime("%H:%M")

@@ -7,13 +7,14 @@ import requests
 from time import sleep
 
 from alpaca.trading.client import TradingClient
-from alpaca.trading.requests import LimitOrderRequest, GetCalendarRequest
+from alpaca.trading.requests import LimitOrderRequest, GetCalendarRequest, GetPortfolioHistoryRequest
 from alpaca.trading.enums import OrderSide, TimeInForce, OrderStatus
 
 from alpaca.data import StockHistoricalDataClient, StockBarsRequest, StockLatestBarRequest, StockLatestQuoteRequest, StockLatestTradeRequest, TimeFrame
 from alpaca.data.live import StockDataStream
 
-from alpaca.broker import BrokerClient
+from alpaca.broker.client import BrokerClient
+from alpaca.broker.requests import GetAccountActivitiesRequest
 
 
 try:
@@ -22,6 +23,9 @@ try:
     secondaryDataSourceApiUrl = os.getenv('SECONDARY_DATA_SOURCE_API_URL')
     secondaryDataSourceApiKey = os.getenv('SECONDARY_DATA_SOURCE_API_KEY')
     paperAccount = os.getenv('PAPER_ACCOUNT') == 'True'
+    
+    specialHeaders = {'APCA-API-KEY-ID': apiKeyID, 'APCA-API-SECRET-KEY': secretKey}
+
     liveQuoteData = {}
     liveTradeData = {}
 
@@ -238,4 +242,36 @@ def getSecondaryPrice(symbol):
         return price
     except:
         ls.log.exception("api.getSecondaryPricing")
+
+
+#######################################################################
+## All methods below use custom requests due to gaps in native APIs. ##
+#######################################################################
+
+def getCashDeposits(afterTimestamp):
+    try:
+        #This method should eventually use broker_client.get_account_activities()
+        url = 'https://api.alpaca.markets/v2/account/activities/CSD?after=' + afterTimestamp
+        response = requests.get(url=url, headers=specialHeaders).json()
+        return response
+    except:
+        ls.log.exception("api.getCashDeposits")
+
+def getCashWithdrawals(afterTimestamp):
+    try:
+        #This method should eventually use broker_client.get_account_activities()
+        url = 'https://api.alpaca.markets/v2/account/activities/CSW?after=' + afterTimestamp
+        response = requests.get(url=url, headers=specialHeaders).json()
+        return response
+    except:
+        ls.log.exception("api.getCashWithdrawals")
+
+def getPortfolioHistory():
+    try:
+        #This method should eventually use broker_client.get_portfolio_history_for_account()
+        url = 'https://api.alpaca.markets/v2/account/portfolio/history?period=1A'
+        response = requests.get(url=url, headers=specialHeaders).json()
+        return response
+    except:
+        ls.log.exception("api.getPortfolioHistory")
 

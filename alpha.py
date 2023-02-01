@@ -52,33 +52,10 @@ def main():
 
                 sleep(int(os.getenv('WAIT_FOR_LIVE_DATA_SECONDS')))
 
-                if buyEnabled:
-
-                    for symbol in symbolList:
-                        rsiPeriod = int(os.getenv('RSI_PERIOD_BUY'))
-                        asset = Asset(symbol, rsiPeriod)
-                        rsi = asset.rsi
-                        percentUpDown = asset.percentUpDown
-                        limitPriceBuy = asset.limitPriceBuy
-                        rsiLower = int(os.getenv('RSI_LOWER'))
-
-                        #buy
-                        if percentUpDown <= 0 and rsi <= rsiLower:
-
-                            quantity = getBuyOrderQuantity(symbol, limitPriceBuy)
-                                
-                            if quantity > 0 and ordersEnabled:
-                                orderID = api.submitOrder(symbol, quantity, limitPriceBuy, 'buy')
-                                orderFilled = api.orderFilled(orderID)
-                                
-                                if orderFilled:
-                                    purchasePrice = api.getFilledOrderAveragePrice(orderID)
-                                    insertBuyRecord(symbol, quantity, purchasePrice, orderID)
-
-                        api.unSubscribeLiveData(symbol)
-
                 #sell
                 if sellEnabled:
+
+                    ls.log.info("SELL PHASE")
 
                     distinctSymbolsEligibleForSale = getDistinctSymbolsEligibleForSale()
                     for record in distinctSymbolsEligibleForSale:
@@ -131,6 +108,46 @@ def main():
                     for record in distinctSymbolsEligibleForSale:
                         symbol = record[0]
                         api.unSubscribeLiveData(symbol)
+
+                #buy
+                if buyEnabled:
+
+                    ls.log.info("BUY PHASE")
+
+                    for symbol in symbolList:
+                        rsiPeriod = int(os.getenv('RSI_PERIOD_BUY'))
+                        asset = Asset(symbol, rsiPeriod)
+                        rsi = asset.rsi
+                        percentUpDown = asset.percentUpDown
+                        limitPriceBuy = asset.limitPriceBuy
+                        rsiLower = int(os.getenv('RSI_LOWER'))
+
+                        if percentUpDown <= 0 and rsi <= rsiLower:
+
+                            quantity = getBuyOrderQuantity(symbol, limitPriceBuy)
+                                
+                            if quantity > 0 and ordersEnabled:
+                                orderID = api.submitOrder(symbol, quantity, limitPriceBuy, 'buy')
+                                orderFilled = api.orderFilled(orderID)
+                                
+                                if orderFilled:
+                                    purchasePrice = api.getFilledOrderAveragePrice(orderID)
+                                    insertBuyRecord(symbol, quantity, purchasePrice, orderID)
+
+                        api.unSubscribeLiveData(symbol)
+
+                #performance reporting
+                oneYearReturn = getOneYearReturn()
+                oneYearBenchmarkReturn = getOneYearBenchmarkReturn()
+                oneYearVariance = oneYearReturn - oneYearBenchmarkReturn
+
+                ls.log.info(
+                                {
+                                    'oneYearPerformance': oneYearReturn,
+                                    'oneYearBenchmark': oneYearBenchmarkReturn,
+                                    'oneYearVariance': oneYearVariance
+                                }
+                            )
 
             except:
                 ls.log.exception("alpha.main inner")
@@ -209,6 +226,44 @@ def getDistinctSymbolsEligibleForSale():
         return symbols
     except:
         ls.log.exception("alpha.getDistinctSymbolsEligibleForSale")
+
+
+def getOneYearReturn():
+    try:
+        periodStart = str(tk.todayMinus1YearFormatted)
+        cashDeposits = api.getCashDeposits(periodStart)
+        cashWithdrawals = api.getCashWithdrawals(periodStart)
+        portfolioHistory = api.getPortfolioHistory()
+        
+        totalDeposits = float(0)
+        for deposit in cashDeposits:
+            totalDeposits += float(deposit['net_amount'])
+        
+        totalWithdrawals = float(0)
+        for withdrawal in cashWithdrawals:
+            totalWithdrawals += float(withdrawal['net_amount'])
+
+        startingEquity = float(portfolioHistory['equity'][0])
+        endingEquity = float(portfolioHistory['equity'][len(portfolioHistory['equity'])-1])
+
+        adjustedStartingEquity = startingEquity + totalDeposits - totalWithdrawals
+        returnPercentage = (endingEquity - adjustedStartingEquity) / adjustedStartingEquity
+        return returnPercentage
+
+    except:
+        ls.log.exception("alpha.getOneYearReturn")
+
+
+def getOneYearBenchmarkReturn():
+    try:
+        benchmarkSymbol = os.getenv('BENCHMARK_SYMBOL')
+        barsData = api.getStockBars(benchmarkSymbol, tk.todayMinus1Year, tk.nowMinus15Minutes).data[benchmarkSymbol]
+        startingPrice = float(barsData[0].close)
+        endingPrice = float(barsData[len(barsData)-1].close)
+        returnPercentage = (endingPrice - startingPrice) / startingPrice
+        return returnPercentage
+    except:
+        ls.log.exception("alpha.getOneYearBenchmarkReturn")
 
 
 if __name__ == '__main__':
