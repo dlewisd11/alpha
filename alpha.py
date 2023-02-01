@@ -47,11 +47,6 @@ def main():
 
             try:
 
-                for symbol in symbolList:
-                    api.subscribeLiveData(symbol)
-
-                sleep(int(os.getenv('WAIT_FOR_LIVE_DATA_SECONDS')))
-
                 #sell
                 if sellEnabled:
 
@@ -113,6 +108,11 @@ def main():
                 if buyEnabled:
 
                     ls.log.info("BUY PHASE")
+
+                    for symbol in symbolList:
+                        api.subscribeLiveData(symbol)
+
+                    sleep(int(os.getenv('WAIT_FOR_LIVE_DATA_SECONDS')))
 
                     for symbol in symbolList:
                         rsiPeriod = int(os.getenv('RSI_PERIOD_BUY'))
