@@ -7,14 +7,13 @@ import requests
 from time import sleep
 
 from alpaca.trading.client import TradingClient
-from alpaca.trading.requests import LimitOrderRequest, GetCalendarRequest, GetPortfolioHistoryRequest
+from alpaca.trading.requests import LimitOrderRequest, GetCalendarRequest
 from alpaca.trading.enums import OrderSide, TimeInForce, OrderStatus
 
 from alpaca.data import StockHistoricalDataClient, StockBarsRequest, StockLatestBarRequest, StockLatestQuoteRequest, StockLatestTradeRequest, TimeFrame
 from alpaca.data.live import StockDataStream
 
 from alpaca.broker.client import BrokerClient
-from alpaca.broker.requests import GetAccountActivitiesRequest
 
 
 try:
