@@ -24,6 +24,7 @@ def main():
         marketOpenCondition = marketClock.is_open
         marketCloseCondition = tk.hour == (marketClock.next_close.hour - 1)
         runUnconditionally = os.getenv('RUN_UNCONDITIONALLY') == 'True'
+        paperAccount = os.getenv('PAPER_ACCOUNT') == 'True'
 
         if (weekDayCondition and marketOpenCondition and marketCloseCondition) or runUnconditionally:
 
@@ -137,17 +138,18 @@ def main():
                         api.unSubscribeLiveData(symbol)
 
                 #performance reporting
-                oneYearReturn = getOneYearReturn()
-                oneYearBenchmarkReturn = getOneYearBenchmarkReturn()
-                oneYearVariance = oneYearReturn - oneYearBenchmarkReturn
+                if not paperAccount:
+                    oneYearReturn = getOneYearReturn()
+                    oneYearBenchmarkReturn = getOneYearBenchmarkReturn()
+                    oneYearVariance = oneYearReturn - oneYearBenchmarkReturn
 
-                ls.log.info(
-                                {
-                                    'oneYearPerformance': oneYearReturn,
-                                    'oneYearBenchmark': oneYearBenchmarkReturn,
-                                    'oneYearVariance': oneYearVariance
-                                }
-                            )
+                    ls.log.info(
+                                    {
+                                        'oneYearPerformance': oneYearReturn,
+                                        'oneYearBenchmark': oneYearBenchmarkReturn,
+                                        'oneYearVariance': oneYearVariance
+                                    }
+                                )
 
             except:
                 ls.log.exception("alpha.main inner")
