@@ -92,14 +92,17 @@ def main():
                             rsiSellCondition = rsi >= rsiUpper
                             profitMarginSellCondition = ((limitPriceSell / purchasePrice) - 1) >= (sellSideMarginMinimum + marginInterestCoverage)
 
-                            if percentUpDownCondition and profitMarginSellCondition and rsiSellCondition and ordersEnabled:
-
-                                orderID = api.submitOrder(symbol, quantity, limitPriceSell, 'sell')
-                                orderFilled = api.orderFilled(orderID)
+                            if percentUpDownCondition and profitMarginSellCondition and rsiSellCondition:
                                 
-                                if orderFilled:
-                                    salePrice = api.getFilledOrderAveragePrice(orderID)
-                                    updateSoldPosition(tableRecordID, salePrice, orderID)
+                                ls.log.debug("Sell conditions met.")
+
+                                if ordersEnabled:
+                                    orderID = api.submitOrder(symbol, quantity, limitPriceSell, 'sell')
+                                    orderFilled = api.orderFilled(orderID)
+                                    
+                                    if orderFilled:
+                                        salePrice = api.getFilledOrderAveragePrice(orderID)
+                                        updateSoldPosition(tableRecordID, salePrice, orderID)
 
                     for record in distinctSymbolsEligibleForSale:
                         symbol = record[0]
@@ -124,8 +127,9 @@ def main():
                         rsiLower = int(os.getenv('RSI_LOWER'))
 
                         if percentUpDown <= 0 and rsi <= rsiLower:
-
-                            quantity = getBuyOrderQuantity(symbol, limitPriceBuy)
+                            
+                            ls.log.debug("Buy conditions met.")
+                            quantity = getBuyOrderQuantity(limitPriceBuy)
                                 
                             if quantity > 0 and ordersEnabled:
                                 orderID = api.submitOrder(symbol, quantity, limitPriceBuy, 'buy')
@@ -168,13 +172,14 @@ def main():
         ls.log.info("END")
 
         
-def getBuyOrderQuantity(symbol, limitPrice):
+def getBuyOrderQuantity(limitPrice):
     try:
         enduranceDays = int(os.getenv('ENDURANCE_DAYS'))
 
         accountInformation = api.getAccountInformation()
         equity = float(accountInformation.equity)
         longMarketValue = float(accountInformation.long_market_value)
+        cash = float(accountInformation.cash)
 
         activeMarginPercentage = float(os.getenv('ACTIVE_MARGIN_PERCENTAGE'))
         activeCapital = equity * (1 + activeMarginPercentage)
@@ -183,12 +188,29 @@ def getBuyOrderQuantity(symbol, limitPrice):
 
         if (activeBuyingPower / theoreticalOrderCost) > 0:
             orderQuantity = int(theoreticalOrderCost / limitPrice)
-            return orderQuantity
-        
+            
         else:
             orderQuantity = int(activeBuyingPower / limitPrice)
-            return orderQuantity if orderQuantity > 0 else 0
+            orderQuantity = orderQuantity if orderQuantity > 0 else 0
 
+        if activeMarginPercentage <= 0:
+            estimatedOrderCost = orderQuantity * limitPrice
+            orderQuantity = orderQuantity if cash >= estimatedOrderCost else 0
+
+        ls.log.debug(
+                        {
+                            'equity': equity,
+                            'longMarketValue': longMarketValue,
+                            'activeMarginPercentage': activeMarginPercentage,
+                            'activeCapital': activeCapital,
+                            'theoreticalOrderCost': theoreticalOrderCost,
+                            'activeBuyingPower': activeBuyingPower,
+                            'limitPrice': limitPrice,
+                            'orderQuantity': orderQuantity        
+                        }
+                    )
+
+        return orderQuantity
     except:
         ls.log.exception("alpha.getBuyOrderQuantity")
 
