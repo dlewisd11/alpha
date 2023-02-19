@@ -125,8 +125,9 @@ def main():
                         percentUpDown = asset.percentUpDown
                         limitPriceBuy = asset.limitPriceBuy
                         rsiLower = int(os.getenv('RSI_LOWER'))
+                        checkMinPurchasePrice = checkMinimumPurchasePrice(symbol, limitPriceBuy)
 
-                        if percentUpDown <= 0 and rsi <= rsiLower:
+                        if percentUpDown <= 0 and rsi <= rsiLower and checkMinPurchasePrice:
                             
                             ls.log.debug("Buy conditions met.")
                             quantity = getBuyOrderQuantity(limitPriceBuy)
@@ -250,6 +251,16 @@ def getDistinctSymbolsEligibleForSale():
         return symbols
     except:
         ls.log.exception("alpha.getDistinctSymbolsEligibleForSale")
+
+
+def checkMinimumPurchasePrice(symbol, purchasePrice):
+    try:
+        query = "SELECT 1 FROM " + db.dbTableName + " WHERE symbol = %s AND purchaseprice < %s AND ISNULL(saleorderid) AND ISNULL(saledate) AND ISNULL(saleprice)"
+        values = (symbol, purchasePrice)
+        records = db.runQueryAndReturnResults(query, values)
+        return False if len(records) > 0 else True
+    except:
+        ls.log.exception("alpha.checkMinimumPurchasePrice")
 
 
 def getOneYearReturn():
