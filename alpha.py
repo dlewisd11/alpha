@@ -281,7 +281,7 @@ def getOneYearReturn():
 def getOneYearBenchmarkReturn():
     try:
         benchmarkSymbol = os.getenv('BENCHMARK_SYMBOL')
-        benchmarkDividendYield = os.getenv('BENCHMARK_DIVIDEND_YIELD')
+        benchmarkDividendYield = float(os.getenv('BENCHMARK_DIVIDEND_YIELD'))
         barsData = api.getStockBars(benchmarkSymbol, tk.todayMinus1Year, tk.nowMinus15Minutes).data[benchmarkSymbol]
         startingPrice = float(barsData[0].close)
         endingPrice = float(barsData[len(barsData)-1].close)
