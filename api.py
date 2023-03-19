@@ -7,7 +7,7 @@ import requests
 from time import sleep
 
 from alpaca.trading.client import TradingClient
-from alpaca.trading.requests import LimitOrderRequest, GetCalendarRequest
+from alpaca.trading.requests import LimitOrderRequest, GetCalendarRequest, GetPortfolioHistoryRequest
 from alpaca.trading.enums import OrderSide, TimeInForce, OrderStatus
 
 from alpaca.data import StockHistoricalDataClient, StockBarsRequest, StockLatestBarRequest, StockLatestQuoteRequest, StockLatestTradeRequest, TimeFrame
@@ -19,7 +19,7 @@ from alpaca.broker.client import BrokerClient
 try:
     apiKeyID = os.getenv('API_KEY_ID')
     secretKey = os.getenv('SECRET_KEY')
-    secondaryDataSourceApiUrl = os.getenv('SECONDARY_DATA_SOURCE_API_URL')
+    secondaryDataSourceApiBaseUrl = os.getenv('SECONDARY_DATA_SOURCE_API_BASE_URL')
     secondaryDataSourceApiKey = os.getenv('SECONDARY_DATA_SOURCE_API_KEY')
     paperAccount = os.getenv('PAPER_ACCOUNT') == 'True'
     
@@ -147,10 +147,7 @@ def getStockBars(symbol, startDate, endDate):
 
 def getStockLatestBar(symbol):
     try:
-        stockLatestBarRequest = StockLatestBarRequest(
-                                symbol_or_symbols=symbol
-                                    
-        )
+        stockLatestBarRequest = StockLatestBarRequest(symbol_or_symbols=symbol)
         return data_client.get_stock_latest_bar(stockLatestBarRequest)
     except:
         ls.log.exception("api.getStockLatestBar")
@@ -158,9 +155,7 @@ def getStockLatestBar(symbol):
 
 def getLatestQuote(symbol):
     try:
-        stockLatestQuoteRequest = StockLatestQuoteRequest(
-                                    symbol_or_symbols=symbol
-        )
+        stockLatestQuoteRequest = StockLatestQuoteRequest(symbol_or_symbols=symbol)
         return data_client.get_stock_latest_quote(stockLatestQuoteRequest)[symbol]
     except:
         ls.log.exception("api.getLatestQuote")
@@ -168,9 +163,7 @@ def getLatestQuote(symbol):
 
 def getLatestTrade(symbol):
     try:
-        stockLatestTradeRequest = StockLatestTradeRequest(
-                                    symbol_or_symbols=symbol
-        )
+        stockLatestTradeRequest = StockLatestTradeRequest(symbol_or_symbols=symbol)
         return data_client.get_stock_latest_trade(stockLatestTradeRequest)[symbol]
     except:
         ls.log.exception("api.getLatestTrade")
@@ -232,7 +225,7 @@ def stopLiveDataStream():
 
 def getSecondaryPrice(symbol):
     try:
-        url = secondaryDataSourceApiUrl.replace('^{SYMBOL}', symbol).replace('^{KEY}', secondaryDataSourceApiKey)
+        url = secondaryDataSourceApiBaseUrl + f'/v3/quote-short/{symbol}?apikey={secondaryDataSourceApiKey}'
         response = requests.get(url)
         if not response.ok:
             raise Exception("Error contacting secondary data source api.")
@@ -241,6 +234,32 @@ def getSecondaryPrice(symbol):
         return price
     except:
         ls.log.exception("api.getSecondaryPricing")
+
+
+def getDividendHistory(symbol):
+    try:
+        url = secondaryDataSourceApiBaseUrl + f'/v3/historical-price-full/stock_dividend/{symbol}?apikey={secondaryDataSourceApiKey}'
+        response = requests.get(url)
+        if not response.ok:
+            raise Exception("Error contacting secondary data source api.")
+        jsonResponse = response.json()
+        dividendHistory = jsonResponse['historical']
+        return dividendHistory
+    except:
+        ls.log.exception("api.getDividendHistory")
+
+
+def getRSI(symbol, period):
+    try:
+        url = secondaryDataSourceApiBaseUrl + f'/v3/technical_indicator/daily/{symbol}?period={period}&type=rsi&apikey={secondaryDataSourceApiKey}'
+        response = requests.get(url)
+        if not response.ok:
+            raise Exception("Error contacting secondary data source api.")
+        jsonResponse = response.json()
+        rsi = jsonResponse[0]['rsi']
+        return rsi
+    except:
+        ls.log.exception("api.getRSI")
 
 
 #######################################################################
@@ -256,6 +275,7 @@ def getCashDeposits(afterTimestamp):
     except:
         ls.log.exception("api.getCashDeposits")
 
+
 def getCashWithdrawals(afterTimestamp):
     try:
         #This method should eventually use broker_client.get_account_activities()
@@ -264,6 +284,7 @@ def getCashWithdrawals(afterTimestamp):
         return response
     except:
         ls.log.exception("api.getCashWithdrawals")
+
 
 def getPortfolioHistory():
     try:

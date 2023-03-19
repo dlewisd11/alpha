@@ -285,10 +285,26 @@ def getOneYearBenchmarkReturn():
         barsData = api.getStockBars(benchmarkSymbol, tk.todayMinus1Year, tk.nowMinus15Minutes).data[benchmarkSymbol]
         startingPrice = float(barsData[0].close)
         endingPrice = float(barsData[len(barsData)-1].close)
+        benchmarkDividendYield = getDividendYield(benchmarkSymbol, endingPrice)
         returnPercentage = ((endingPrice - startingPrice) / startingPrice) + benchmarkDividendYield
         return returnPercentage
     except:
         ls.log.exception("alpha.getOneYearBenchmarkReturn")
+
+
+def getDividendYield(symbol, price):
+    try:
+        dividendHistory = api.getDividendHistory(symbol)
+        annualDividend = 0
+        for dividendPayment in dividendHistory:
+            if dividendPayment['paymentDate'] >= tk.todayMinus1YearFormatted:
+                annualDividend += dividendPayment['dividend']
+            else:
+                break
+        dividendYield = annualDividend / price
+        return dividendYield
+    except:
+        ls.log.exception("alpha.getDividendYield")
 
 
 if __name__ == '__main__':
