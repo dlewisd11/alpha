@@ -3,6 +3,7 @@ load_dotenv()
 
 import os
 import uuid
+import pprint
 from concurrent.futures import ThreadPoolExecutor
 
 import logsetup as ls
@@ -38,7 +39,7 @@ def main():
                         'ordersEnabled': ordersEnabled
             }
 
-            ls.log.info(logData)
+            ls.log.info(ls.prettyFormat(logData))
             
             symbolList = os.getenv('TICKERS').split(',')
 
@@ -148,12 +149,14 @@ def main():
                     oneYearVariance = oneYearReturn - oneYearBenchmarkReturn
 
                     ls.log.info(
-                                    {
-                                        'oneYearPerformance': oneYearReturn,
-                                        'oneYearBenchmark': oneYearBenchmarkReturn,
-                                        'oneYearVariance': oneYearVariance
-                                    }
-                                )
+                        ls.prettyFormat(
+                                            {
+                                                'oneYearPerformance': oneYearReturn,
+                                                'oneYearBenchmark': oneYearBenchmarkReturn,
+                                                'oneYearVariance': oneYearVariance
+                                            }
+                                        )
+                                    )
 
             except:
                 ls.log.exception("alpha.main inner")

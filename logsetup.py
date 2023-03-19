@@ -1,5 +1,6 @@
 from distutils.debug import DEBUG
 import os
+import pprint
 import logging
 import timekeeper as tk
 
@@ -18,6 +19,12 @@ def decodeLogLevel(logLevel):
         case _:
             logLevel = logging.INFO
     return logLevel
+
+
+def prettyFormat(object):
+    formattedString = pprint.pformat(object=object, compact=True)
+    return formattedString
+
 
 defaultLogLevel = decodeLogLevel(os.getenv('DEFAULT_LOG_LEVEL'))
 applicationLogLevel = decodeLogLevel(os.getenv('APPLICATION_LOG_LEVEL'))

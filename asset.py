@@ -25,6 +25,22 @@ class Asset:
             self.percentUpDown = self.__getPercentUpDown(self.previousClosingPrice, self.averagePrice)
             self.limitPriceBuy = self.__getLimitPrice(self.latestTradePrice if liveTradeDataPresent else self.averagePriceBuy, 'buy')
             self.limitPriceSell = self.__getLimitPrice(self.latestTradePrice if liveTradeDataPresent else self.averagePriceSell, 'sell')
+            self.rsiMap = {
+                            1: self.__getRSI(1),
+                            2: self.__getRSI(2),
+                            3: self.__getRSI(3),
+                            4: self.__getRSI(4),
+                            5: self.__getRSI(5),
+                            6: self.__getRSI(6),
+                            7: self.__getRSI(7),
+                            8: self.__getRSI(8),
+                            9: self.__getRSI(9),
+                            10: self.__getRSI(10),
+                            11: self.__getRSI(11),
+                            12: self.__getRSI(12),
+                            13: self.__getRSI(13),
+                            14: self.__getRSI(14)
+                          }
 
             logData = {
                         'symbol': self.symbol,
@@ -44,7 +60,7 @@ class Asset:
                         'percentUpDown': self.percentUpDown
             }
 
-            ls.log.info(logData)
+            ls.log.info(ls.prettyFormat(logData))
 
         except:
             ls.log.exception("Asset.__init__")
@@ -91,7 +107,7 @@ class Asset:
 
             if averageLoss != 0:
                 rs = averageGain / averageLoss
-                rsi = 100 - 100 / (1 + rs)
+                rsi = 100 - (100 / (1 + rs))
             else:
                 rsi = 100
 
