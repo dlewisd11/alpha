@@ -9,8 +9,7 @@ class Asset:
         try:
             self.symbol = symbol            
             self.bars = self.__getBars()
-            self.previousClosingPrice = self.__getPreviousClose()
-            self.rsi = self.__getRSI(rsiPeriod)
+            self.previousClosingPrice = self.__getPreviousClose()            
             self.latestQuote = api.getLatestQuote(self.symbol)
             liveQuoteDataPresent = self.symbol in api.liveQuoteData
             liveTradeDataPresent = self.symbol in api.liveTradeData
@@ -22,9 +21,10 @@ class Asset:
             self.averagePrice = self.__getAveragePrice()
             self.averagePriceBuy = self.__getAveragePriceBuy()
             self.averagePriceSell = self.__getAveragePriceSell()
-            self.percentUpDown = self.__getPercentUpDown(self.previousClosingPrice, self.averagePrice)
             self.limitPriceBuy = self.__getLimitPrice(self.latestTradePrice if liveTradeDataPresent else self.averagePriceBuy, 'buy')
             self.limitPriceSell = self.__getLimitPrice(self.latestTradePrice if liveTradeDataPresent else self.averagePriceSell, 'sell')
+            self.percentUpDown = self.__getPercentUpDown(self.previousClosingPrice, self.averagePrice)
+            self.rsi = self.__getRSI(rsiPeriod)
 
             logData = {
                         'symbol': self.symbol,

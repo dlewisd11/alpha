@@ -7,7 +7,7 @@ import requests
 from time import sleep
 
 from alpaca.trading.client import TradingClient
-from alpaca.trading.requests import LimitOrderRequest, GetCalendarRequest, GetPortfolioHistoryRequest
+from alpaca.trading.requests import LimitOrderRequest, GetCalendarRequest
 from alpaca.trading.enums import OrderSide, TimeInForce, OrderStatus
 
 from alpaca.data import StockHistoricalDataClient, StockBarsRequest, StockLatestBarRequest, StockLatestQuoteRequest, StockLatestTradeRequest, TimeFrame
@@ -247,19 +247,6 @@ def getDividendHistory(symbol):
         return dividendHistory
     except:
         ls.log.exception("api.getDividendHistory")
-
-
-def getRSI(symbol, period):
-    try:
-        url = secondaryDataSourceApiBaseUrl + f'/v3/technical_indicator/daily/{symbol}?period={period}&type=rsi&apikey={secondaryDataSourceApiKey}'
-        response = requests.get(url)
-        if not response.ok:
-            raise Exception("Error contacting secondary data source api.")
-        jsonResponse = response.json()
-        rsi = jsonResponse[0]['rsi']
-        return rsi
-    except:
-        ls.log.exception("api.getRSI")
 
 
 #######################################################################
