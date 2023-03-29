@@ -254,7 +254,7 @@ def getDistinctSymbolsEligibleForSale():
 
 def getOneYearReturn():
     try:
-        periodStart = str(tk.todayMinus1YearFormatted)
+        periodStart = str(tk.todayMinus1YearPlus2DaysFormatted)
         cashDeposits = api.getCashDeposits(periodStart)
         cashWithdrawals = api.getCashWithdrawals(periodStart)
         portfolioHistory = api.getPortfolioHistory()
