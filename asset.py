@@ -19,6 +19,7 @@ class Asset:
             self.latestBarPrice = api.getStockLatestBar(self.symbol)[symbol].close
             self.secondaryPrice = api.getSecondaryPrice(self.symbol)
             self.averagePrice = self.__getAveragePrice()
+            self.spreadCheck = self.__spreadCheck()
             self.averagePriceBuy = self.__getAveragePriceBuy()
             self.averagePriceSell = self.__getAveragePriceSell()
             self.limitPriceBuy = self.__getLimitPrice(self.latestTradePrice if liveTradeDataPresent else self.averagePriceBuy, 'buy')
@@ -127,13 +128,32 @@ class Asset:
 
     def __getAveragePriceBuy(self):
         try:
-            return (self.latestAsk + self.latestBarPrice + self.latestTradePrice + self.secondaryPrice) / 4
+            if not self.spreadCheck:
+                return self.averagePrice
+            else:
+                return (self.latestAsk + self.latestBarPrice + self.latestTradePrice + self.secondaryPrice) / 4
         except:
             ls.log.exception("Asset.__getAveragePriceBuy")
 
 
     def __getAveragePriceSell(self):
         try:
-            return (self.latestBid + self.latestBarPrice + self.latestTradePrice + self.secondaryPrice) / 4
+            if not self.spreadCheck:
+                return self.averagePrice
+            else:
+                return (self.latestBid + self.latestBarPrice + self.latestTradePrice + self.secondaryPrice) / 4
         except:
             ls.log.exception("Asset.__getAveragePriceSell")
+
+
+    def __spreadCheck(self):
+        try:
+            spreadPercentage = float(((self.latestAsk / self.latestBid) - 1))
+            spreadLimit = float(os.getenv('SPREAD_LIMIT'))
+            if spreadPercentage > spreadLimit:
+                return False
+            else:
+                return True
+        except:
+            ls.log.exception("Asset.__spreadCheck")
+
