@@ -18,6 +18,7 @@ class Asset:
             self.latestTradePrice = api.liveTradeData[self.symbol].price if liveTradeDataPresent else api.getLatestTrade(self.symbol).price
             self.latestBarPrice = api.getStockLatestBar(self.symbol)[symbol].close
             self.secondaryPrice = api.getSecondaryPrice(self.symbol)
+            self.secondaryPrice = self.secondaryPrice if self.secondaryPrice is not None else self.latestTradePrice
             self.averagePrice = self.__getAveragePrice()
             self.spreadCheck = self.__spreadCheck()
             self.averagePriceBuy = self.__getAveragePriceBuy()
@@ -129,7 +130,9 @@ class Asset:
     def __getAveragePriceBuy(self):
         try:
             if not self.spreadCheck:
-                return self.averagePrice
+                spreadLimit = float(os.getenv('SPREAD_LIMIT'))
+                artificialPriceBuy = self.averagePrice * (1 + (spreadLimit / 2))
+                return artificialPriceBuy
             else:
                 return (self.latestAsk + self.latestBarPrice + self.latestTradePrice + self.secondaryPrice) / 4
         except:
@@ -139,7 +142,9 @@ class Asset:
     def __getAveragePriceSell(self):
         try:
             if not self.spreadCheck:
-                return self.averagePrice
+                spreadLimit = float(os.getenv('SPREAD_LIMIT'))
+                artificialPriceSell = self.averagePrice * (1 - (spreadLimit / 2))
+                return artificialPriceSell
             else:
                 return (self.latestBid + self.latestBarPrice + self.latestTradePrice + self.secondaryPrice) / 4
         except:
