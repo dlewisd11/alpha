@@ -76,7 +76,8 @@ def main():
 
                         if elapsedTimeSellCondition:
 
-                            rsiPeriod = int(os.getenv('RSI_PERIOD_SELL'))
+                            rsiPeriodDictionary = getRsiPeriods()
+                            rsiPeriod = rsiPeriodDictionary['sell']
                             asset = Asset(symbol, rsiPeriod)
                             limitPriceSell = asset.limitPriceSell
                             percentUpDown = asset.percentUpDown
@@ -119,7 +120,8 @@ def main():
                     sleep(int(os.getenv('WAIT_FOR_LIVE_DATA_SECONDS')))
 
                     for symbol in symbolList:
-                        rsiPeriod = int(os.getenv('RSI_PERIOD_BUY'))
+                        rsiPeriodDictionary = getRsiPeriods()
+                        rsiPeriod = rsiPeriodDictionary['buy']
                         asset = Asset(symbol, rsiPeriod)
                         rsi = asset.rsi
                         percentUpDown = asset.percentUpDown
@@ -250,6 +252,44 @@ def getDistinctSymbolsEligibleForSale():
         return symbols
     except:
         ls.log.exception("alpha.getDistinctSymbolsEligibleForSale")
+
+
+def getRsiPeriods():
+    try:
+        accountInformation = api.getAccountInformation()
+        equity = float(accountInformation.equity)
+        longMarketValue = float(accountInformation.long_market_value)
+        activeMarginPercentage = float(os.getenv('ACTIVE_MARGIN_PERCENTAGE'))
+        activeCapital = equity * (1 + activeMarginPercentage)
+        capitalUtilization = longMarketValue / activeCapital
+
+        rsiPeriodLower = int(os.getenv('RSI_PERIOD_LOWER'))
+        rsiPeriodUpper = int(os.getenv('RSI_PERIOD_UPPER'))
+
+        if rsiPeriodLower > rsiPeriodUpper:
+            raise Exception("RSI period lower must be less than or equal to RSI period upper.")
+
+        rsiRange = range(rsiPeriodLower, rsiPeriodUpper + 1)
+        rsiRangeLength = len(rsiRange)
+
+        utzSegmentSize = 1 / rsiRangeLength
+        currentUtzTestValue = utzSegmentSize
+        
+        buyRSI = 0
+        sellRSI = 0
+
+        for i in range(rsiRangeLength):
+            if capitalUtilization <= currentUtzTestValue:
+                buyRSI = rsiRange[i]
+                sellRSI = rsiRange[rsiRangeLength - 1 - i]
+                break
+            currentUtzTestValue = currentUtzTestValue + utzSegmentSize
+        
+        rsiDictionary = {'buy': buyRSI, 'sell': sellRSI}
+        
+        return rsiDictionary
+    except:
+        ls.log.exception("alpha.getRsiPeriods")
 
 
 def getOneYearReturn():
