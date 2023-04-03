@@ -281,9 +281,19 @@ def getRsiPeriods():
 
         for i in range(rsiRangeLength):
             if capitalUtilization <= currentUtzTestValue:
-                buyRSI = rsiRange[i]
+                
+                buyRSI = rsiRange[i]    
+                if buyRSI > 8:
+                    buyRSI = buyRSI - 3                
+                elif buyRSI > 6:
+                    buyRSI = buyRSI - 2
+                elif buyRSI > 4:
+                    buyRSI = buyRSI - 1
+                
                 sellRSI = rsiRange[rsiRangeLength - 1 - i]
+                
                 break
+
             currentUtzTestValue = currentUtzTestValue + utzSegmentSize
         
         rsiDictionary = {'buy': buyRSI, 'sell': sellRSI}
