@@ -63,6 +63,7 @@ def main():
                     accountInformation = api.getAccountInformation()
                     cash = float(accountInformation.cash)
                     positions = getOpenPositionsEligibleForSale()
+                    rsiPeriodDictionary = getRsiPeriods()
                     
                     for position in positions:
 
@@ -76,7 +77,6 @@ def main():
 
                         if elapsedTimeSellCondition:
 
-                            rsiPeriodDictionary = getRsiPeriods()
                             rsiPeriod = rsiPeriodDictionary['sell']
                             asset = Asset(symbol, rsiPeriod)
                             limitPriceSell = asset.limitPriceSell
@@ -119,8 +119,9 @@ def main():
 
                     sleep(int(os.getenv('WAIT_FOR_LIVE_DATA_SECONDS')))
 
-                    for symbol in symbolList:
-                        rsiPeriodDictionary = getRsiPeriods()
+                    rsiPeriodDictionary = getRsiPeriods()
+
+                    for symbol in symbolList:                        
                         rsiPeriod = rsiPeriodDictionary['buy']
                         asset = Asset(symbol, rsiPeriod)
                         rsi = asset.rsi
