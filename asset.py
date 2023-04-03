@@ -131,7 +131,7 @@ class Asset:
         try:
             if not self.spreadCheck:
                 spreadLimit = float(os.getenv('SPREAD_LIMIT'))
-                artificialPriceBuy = self.averagePrice * (1 + (spreadLimit / 2))
+                artificialPriceBuy = self.latestTradePrice * (1 + (spreadLimit / 2))
                 return artificialPriceBuy
             else:
                 return (self.latestAsk + self.latestBarPrice + self.latestTradePrice + self.secondaryPrice) / 4
@@ -143,7 +143,7 @@ class Asset:
         try:
             if not self.spreadCheck:
                 spreadLimit = float(os.getenv('SPREAD_LIMIT'))
-                artificialPriceSell = self.averagePrice * (1 - (spreadLimit / 2))
+                artificialPriceSell = self.latestTradePrice * (1 - (spreadLimit / 2))
                 return artificialPriceSell
             else:
                 return (self.latestBid + self.latestBarPrice + self.latestTradePrice + self.secondaryPrice) / 4
