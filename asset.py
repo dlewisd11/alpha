@@ -21,11 +21,12 @@ class Asset:
             self.secondaryPrice = self.secondaryPrice if self.secondaryPrice is not None else self.latestTradePrice
             self.averagePrice = self.__getAveragePrice()
             self.spreadCheck = self.__spreadCheck()
+            self.averageTradePrice = self.__getAverageTradePrice()
             self.averagePriceBuy = self.__getAveragePriceBuy()
             self.averagePriceSell = self.__getAveragePriceSell()
             self.limitPriceBuy = self.__getLimitPrice(self.latestTradePrice if liveTradeDataPresent else self.averagePriceBuy, 'buy')
             self.limitPriceSell = self.__getLimitPrice(self.latestTradePrice if liveTradeDataPresent else self.averagePriceSell, 'sell')
-            self.percentUpDown = self.__getPercentUpDown(self.previousClosingPrice, self.averagePrice)
+            self.percentUpDown = self.__getPercentUpDown(self.previousClosingPrice, self.averagePrice if self.spreadCheck else self.averageTradePrice)
             self.rsi = self.__getRSI(rsiPeriod)
 
             logData = {
@@ -38,7 +39,9 @@ class Asset:
                         'latestTradePrice': self.latestTradePrice,
                         'latestBarPrice': self.latestBarPrice,
                         'secondaryPrice': self.secondaryPrice,
+                        'spreadCheck': self.spreadCheck,
                         'averagePrice': self.averagePrice,
+                        'averageTradePrice': self.averageTradePrice,
                         'averagePriceBuy': self.averagePriceBuy,
                         'averagePriceSell': self.averagePriceSell,
                         'limitPriceBuy': self.limitPriceBuy,
@@ -127,11 +130,18 @@ class Asset:
             ls.log.exception("Asset.__getAveragePrice")
 
 
+    def __getAverageTradePrice(self):
+        try:
+            return (self.latestTradePrice + self.latestBarPrice + self.secondaryPrice) / 3
+        except:
+            ls.log.exception("Asset.__getAverageTradePrice")
+
+
     def __getAveragePriceBuy(self):
         try:
             if not self.spreadCheck:
                 spreadLimit = float(os.getenv('SPREAD_LIMIT'))
-                artificialPriceBuy = self.latestTradePrice * (1 + (spreadLimit / 2))
+                artificialPriceBuy = self.averageTradePrice * (1 + (spreadLimit / 2))
                 return artificialPriceBuy
             else:
                 return (self.latestAsk + self.latestBarPrice + self.latestTradePrice + self.secondaryPrice) / 4
@@ -143,7 +153,7 @@ class Asset:
         try:
             if not self.spreadCheck:
                 spreadLimit = float(os.getenv('SPREAD_LIMIT'))
-                artificialPriceSell = self.latestTradePrice * (1 - (spreadLimit / 2))
+                artificialPriceSell = self.averageTradePrice * (1 - (spreadLimit / 2))
                 return artificialPriceSell
             else:
                 return (self.latestBid + self.latestBarPrice + self.latestTradePrice + self.secondaryPrice) / 4
