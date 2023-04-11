@@ -321,7 +321,8 @@ def getOneYearReturn():
         startingEquity = float(portfolioHistory['equity'][0])
         endingEquity = float(portfolioHistory['equity'][len(portfolioHistory['equity'])-1])
 
-        adjustedStartingEquity = startingEquity + totalDeposits - totalWithdrawals
+        # withdrawals are negative, so we add them not subtract them here
+        adjustedStartingEquity = startingEquity + totalDeposits + totalWithdrawals
         returnPercentage = (endingEquity - adjustedStartingEquity) / adjustedStartingEquity
         return returnPercentage
 
