@@ -5,10 +5,11 @@ import api
 
 class Asset:
 
-    def __init__(self, symbol, rsiPeriod):
+    def __init__(self, symbol, rsiPeriod, atTheOpen):
         try:
             self.symbol = symbol            
             self.bars = self.__getBars()
+            self.previousOpeningPrice = self.__getPreviousOpen()
             self.previousClosingPrice = self.__getPreviousClose()            
             self.latestQuote = api.getLatestQuote(self.symbol)
             liveQuoteDataPresent = self.symbol in api.liveQuoteData
@@ -26,27 +27,29 @@ class Asset:
             self.averagePriceSell = self.__getAveragePriceSell()
             self.limitPriceBuy = self.__getLimitPrice(self.latestTradePrice if liveTradeDataPresent else self.averagePriceBuy, 'buy')
             self.limitPriceSell = self.__getLimitPrice(self.latestTradePrice if liveTradeDataPresent else self.averagePriceSell, 'sell')
-            self.percentUpDown = self.__getPercentUpDown(self.previousClosingPrice, self.averagePrice if self.spreadCheck else self.averageTradePrice)
-            self.rsi = self.__getRSI(rsiPeriod)
+            self.percentUpDown = self.__getPercentUpDown(self.previousOpeningPrice if atTheOpen else self.previousClosingPrice, 
+                                                         self.averagePrice if self.spreadCheck else self.averageTradePrice)
+            self.rsi = self.__getRSI(rsiPeriod, atTheOpen)
 
             logData = {
                         'symbol': self.symbol,
-                        'previousClosingPrice': self.previousClosingPrice,
+                        'limitPriceBuy': self.limitPriceBuy,
+                        'limitPriceSell': self.limitPriceSell,
+                        'percentUpDown': self.percentUpDown,
                         'rsi': self.rsi,
                         'rsiPeriod': rsiPeriod,
                         'latestAsk': self.latestAsk,
                         'latestBid': self.latestBid,
+                        'spreadCheck': self.spreadCheck,
+                        'previousOpeningPrice': self.previousOpeningPrice,
+                        'previousClosingPrice': self.previousClosingPrice,
                         'latestTradePrice': self.latestTradePrice,
                         'latestBarPrice': self.latestBarPrice,
                         'secondaryPrice': self.secondaryPrice,
-                        'spreadCheck': self.spreadCheck,
                         'averagePrice': self.averagePrice,
                         'averageTradePrice': self.averageTradePrice,
                         'averagePriceBuy': self.averagePriceBuy,
-                        'averagePriceSell': self.averagePriceSell,
-                        'limitPriceBuy': self.limitPriceBuy,
-                        'limitPriceSell': self.limitPriceSell,
-                        'percentUpDown': self.percentUpDown
+                        'averagePriceSell': self.averagePriceSell
             }
 
             ls.log.info(logData)
@@ -68,6 +71,14 @@ class Asset:
             ls.log.exception("Asset.__getBars")
 
 
+    def __getPreviousOpen(self):
+        try:
+            barsData = self.bars.data[self.symbol]
+            return barsData[len(barsData)-2].open
+        except:
+            ls.log.exception("Asset.__getPreviousOpen")
+
+
     def __getPreviousClose(self):
         try:
             barsData = self.bars.data[self.symbol]
@@ -76,16 +87,23 @@ class Asset:
             ls.log.exception("Asset.__getPreviousClose")
 
 
-    def __getRSI(self, rsiPeriod):
+    def __getRSI(self, rsiPeriod, atTheOpen):
         try:
+            atTheOpen = True
             gain = 0
             loss = 0
             barsData = self.bars.data[self.symbol]
 
             for i in range(rsiPeriod):
-                first = barsData[len(barsData)-2-i].close 
-                second = barsData[len(barsData)-1-i].close
+                first = barsData[len(barsData)-2-i].open if atTheOpen else barsData[len(barsData)-2-i].close
                 
+                if atTheOpen and i == 0:
+                    second = barsData[len(barsData)-1-i].close
+                elif atTheOpen and i != 0:
+                    second = barsData[len(barsData)-1-i].open
+                else:
+                    second = barsData[len(barsData)-1-i].close
+
                 if first<second:
                     gain = gain + abs(second-first)
                 if first>second:

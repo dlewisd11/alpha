@@ -22,11 +22,13 @@ def main():
         weekDayCondition = tk.weekDay != 5 and tk.weekDay != 6
         marketClock = api.getMarketClock()
         marketOpenCondition = marketClock.is_open
-        marketCloseCondition = tk.hour == (marketClock.next_close.hour - 1)
+        currentHour = tk.hour
+        marketOpeningTimeCondition = atTheOpen = currentHour == 9
+        marketClosingTimeCondition = currentHour == (marketClock.next_close.hour - 1)
         runUnconditionally = os.getenv('RUN_UNCONDITIONALLY') == 'True'
         paperAccount = os.getenv('PAPER_ACCOUNT') == 'True'
 
-        if (weekDayCondition and marketOpenCondition and marketCloseCondition) or runUnconditionally:
+        if (weekDayCondition and marketOpenCondition and (marketOpeningTimeCondition or marketClosingTimeCondition)) or runUnconditionally:
 
             buyEnabled = os.getenv('BUY_ENABLED') == 'True'
             sellEnabled = os.getenv('SELL_ENABLED') == 'True'
@@ -78,7 +80,7 @@ def main():
                         if elapsedTimeSellCondition:
 
                             rsiPeriod = rsiPeriodDictionary['sell']
-                            asset = Asset(symbol, rsiPeriod)
+                            asset = Asset(symbol, rsiPeriod, atTheOpen)
                             limitPriceSell = asset.limitPriceSell
                             percentUpDown = asset.percentUpDown
                             rsi = asset.rsi
@@ -123,7 +125,7 @@ def main():
 
                     for symbol in symbolList:                        
                         rsiPeriod = rsiPeriodDictionary['buy']
-                        asset = Asset(symbol, rsiPeriod)
+                        asset = Asset(symbol, rsiPeriod, atTheOpen)
                         rsi = asset.rsi
                         percentUpDown = asset.percentUpDown
                         limitPriceBuy = asset.limitPriceBuy
