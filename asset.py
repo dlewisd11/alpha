@@ -181,8 +181,14 @@ class Asset:
 
     def __spreadCheck(self):
         try:
-            spreadPercentage = float(((self.latestAsk / self.latestBid) - 1))
+            spreadPercentage = float(0)
             spreadLimit = float(os.getenv('SPREAD_LIMIT'))
+            
+            if self.latestBid != 0: 
+                spreadPercentage = float(((self.latestAsk / self.latestBid) - 1))
+            else:
+                return False
+
             if spreadPercentage > spreadLimit:
                 return False
             else:
