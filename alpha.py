@@ -74,8 +74,9 @@ def main():
                         quantity = float(str(position[2]))
                         purchaseDate = position[3]
                         purchasePrice = float(position[4])
+                        dayTradeLimitCheck = dayTradeCheck()
 
-                        elapsedTimeSellCondition = purchaseDate < tk.formattedDate
+                        elapsedTimeSellCondition = purchaseDate < tk.formattedDate or (dayTradeLimitCheck and purchaseDate == tk.formattedDate)
 
                         if elapsedTimeSellCondition:
 
@@ -95,7 +96,7 @@ def main():
                             rsiSellCondition = rsi >= rsiUpper
                             profitMarginSellCondition = ((limitPriceSell / purchasePrice) - 1) >= (sellSideMarginMinimum + marginInterestCoverage)
 
-                            if percentUpDownCondition and profitMarginSellCondition and rsiSellCondition:
+                            if (percentUpDownCondition and profitMarginSellCondition and rsiSellCondition) or (purchaseDate == tk.formattedDate and profitMarginSellCondition):
                                 
                                 ls.log.debug("Sell conditions met.")
 
@@ -255,6 +256,16 @@ def getDistinctSymbolsEligibleForSale():
         return symbols
     except:
         ls.log.exception("alpha.getDistinctSymbolsEligibleForSale")
+
+
+def dayTradeCheck():
+    try:
+        query = "SELECT COUNT(*) FROM " + db.dbTableName + " WHERE purchasedate >= %s AND purchasedate = saledate"
+        count = db.runQueryAndReturnResults(query, (tk.todayMinus5DaysFormatted,))
+        result = count[0][0] <= 3
+        return result
+    except:
+        ls.log.exception("alpha.dayTradeCheck")
 
 
 def getRsiPeriods():
