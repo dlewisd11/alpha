@@ -76,7 +76,7 @@ def main():
                         purchasePrice = float(position[4])
                         dayTradeLimitCheck = dayTradeCheck()
 
-                        elapsedTimeSellCondition = purchaseDate < tk.formattedDate or (dayTradeLimitCheck and purchaseDate == tk.formattedDate)
+                        elapsedTimeSellCondition = purchaseDate < tk.formattedDate or dayTradeLimitCheck
 
                         if elapsedTimeSellCondition:
 
@@ -96,7 +96,11 @@ def main():
                             rsiSellCondition = rsi >= rsiUpper
                             profitMarginSellCondition = ((limitPriceSell / purchasePrice) - 1) >= (sellSideMarginMinimum + marginInterestCoverage)
 
-                            if (percentUpDownCondition and profitMarginSellCondition and rsiSellCondition) or (purchaseDate == tk.formattedDate and profitMarginSellCondition):
+                            standardSellScenario = percentUpDownCondition and profitMarginSellCondition and rsiSellCondition
+                            dayTradeSellScenario = purchaseDate == tk.formattedDate and profitMarginSellCondition
+                            negativeCashSellScenario = cash <= 0 and profitMarginSellCondition
+
+                            if standardSellScenario or dayTradeSellScenario or negativeCashSellScenario:
                                 
                                 ls.log.debug("Sell conditions met.")
 
