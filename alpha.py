@@ -289,8 +289,8 @@ def getRsiPeriods():
         utzSegmentSize = 1 / rsiRangeLength
         currentUtzTestValue = utzSegmentSize
         
-        buyRSI = 0
-        sellRSI = 0
+        buyRSI = rsiPeriodUpper
+        sellRSI = rsiPeriodLower
 
         for i in range(rsiRangeLength):
             if capitalUtilization <= currentUtzTestValue:
