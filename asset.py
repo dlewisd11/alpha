@@ -185,7 +185,7 @@ class Asset:
             spreadLimit = float(os.getenv('SPREAD_LIMIT'))
             
             if self.latestBid != 0: 
-                spreadPercentage = float(((self.latestAsk / self.latestBid) - 1))
+                spreadPercentage = float(abs(((self.latestAsk / self.latestBid) - 1)))
             else:
                 return False
 
