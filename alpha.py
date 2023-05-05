@@ -37,7 +37,8 @@ def main():
             logData = {
                         'buyEnabled': buyEnabled,
                         'sellEnabled': sellEnabled,
-                        'ordersEnabled': ordersEnabled
+                        'ordersEnabled': ordersEnabled,
+                        'atTheOpen': atTheOpen
             }
 
             ls.log.info(logData)
