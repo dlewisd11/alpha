@@ -14,32 +14,40 @@ class Asset:
             self.latestQuote = api.getLatestQuote(self.symbol)
             liveQuoteDataPresent = self.symbol in api.liveQuoteData
             liveTradeDataPresent = self.symbol in api.liveTradeData
-            self.latestAsk = api.liveQuoteData[self.symbol].ask_price if liveQuoteDataPresent else self.latestQuote.ask_price
-            self.latestBid = api.liveQuoteData[self.symbol].bid_price if liveQuoteDataPresent else self.latestQuote.bid_price
+
             self.latestTradePrice = api.liveTradeData[self.symbol].price if liveTradeDataPresent else api.getLatestTrade(self.symbol).price
             self.secondaryPrice = api.getSecondaryPrice(self.symbol)
+            ls.log.debug({'latestTradePrice': self.latestTradePrice, 'secondaryPrice': self.secondaryPrice})
             self.secondaryPrice = self.secondaryPrice if self.secondaryPrice is not None else self.latestTradePrice
+            self.priceCheck = self.__priceCheck()
+            self.currentPrice = self.latestTradePrice if self.priceCheck else self.secondaryPrice
+
+            self.latestAsk = api.liveQuoteData[self.symbol].ask_price if liveQuoteDataPresent else self.latestQuote.ask_price
+            self.latestBid = api.liveQuoteData[self.symbol].bid_price if liveQuoteDataPresent else self.latestQuote.bid_price
+            ls.log.debug({'latestAsk': self.latestAsk, 'latestBid': self.latestBid})
             self.spreadCheck = self.__spreadCheck()
-            self.currentPrice = self.latestTradePrice if self.spreadCheck else self.secondaryPrice
-            self.limitPriceBuy = self.__getLimitPrice(self.latestAsk if self.spreadCheck else self.secondaryPrice, 'buy')
-            self.limitPriceSell = self.__getLimitPrice(self.latestBid if self.spreadCheck else self.secondaryPrice, 'sell')
-            self.percentUpDown = self.__getPercentUpDown(self.previousOpeningPrice if atTheOpen else self.previousClosingPrice, self.currentPrice)
+            self.latestAsk = self.latestAsk if self.spreadCheck else self.__getArtificialSpreadPrice('ask')
+            self.latestBid = self.latestBid if self.spreadCheck else self.__getArtificialSpreadPrice('bid')
+
+            self.limitPriceBuy = self.__getLimitPrice('buy')
+            self.limitPriceSell = self.__getLimitPrice('sell')
+            self.percentUpDown = self.__getPercentUpDown(atTheOpen)
             self.rsi = self.__getRSI(rsiPeriod, atTheOpen)
 
             logData = {
                         'symbol': self.symbol,
+                        'currentPrice': self.currentPrice,
+                        'percentUpDown': self.percentUpDown,
+                        'rsiPeriod': rsiPeriod,
+                        'rsi': self.rsi,
                         'limitPriceBuy': self.limitPriceBuy,
                         'limitPriceSell': self.limitPriceSell,
-                        'percentUpDown': self.percentUpDown,
-                        'rsi': self.rsi,
-                        'rsiPeriod': rsiPeriod,
                         'latestAsk': self.latestAsk,
                         'latestBid': self.latestBid,
-                        'spreadCheck': self.spreadCheck,
                         'previousOpeningPrice': self.previousOpeningPrice,
                         'previousClosingPrice': self.previousClosingPrice,
-                        'latestTradePrice': self.latestTradePrice,
-                        'secondaryPrice': self.secondaryPrice
+                        'spreadCheck': self.spreadCheck,
+                        'priceCheck': self.priceCheck
             }
 
             ls.log.info(logData)
@@ -112,44 +120,68 @@ class Asset:
             ls.log.exception("Asset.__getRSI")
 
 
-    def __getPercentUpDown(self, previousPrice, currentPrice):
+    def __getPercentUpDown(self, atTheOpen):
         try:
-            return (currentPrice - previousPrice) / previousPrice
+            previousPrice = self.previousOpeningPrice if atTheOpen else self.previousClosingPrice
+            return (self.currentPrice - previousPrice) / previousPrice
         except:
             ls.log.exception("Asset.__getPercentUpDown")
 
 
-    def __getLimitPrice(self, currentPrice, side):
+    def __getLimitPrice(self, side):
         try:
-            limitBuffer = os.getenv('LIMIT_BUFFER')
+            limitBuffer = float(os.getenv('LIMIT_BUFFER'))
             if side == 'buy':
-                return float('%.2f' % (currentPrice * (1 + float(limitBuffer))))     
+                return float('%.2f' % (self.latestAsk * (1 + limitBuffer)))     
             else:
-                return float('%.2f' % (currentPrice * (1 - float(limitBuffer))))  
+                return float('%.2f' % (self.latestBid * (1 - limitBuffer)))  
         except:
             ls.log.exception("Asset.__getLimitPrice")
+
+
+    def __getArtificialSpreadPrice(self, side):
+        try:
+            spreadLimit = float(os.getenv('SPREAD_LIMIT'))
+            if side == 'ask':
+                return float('%.2f' % (self.currentPrice * (1 + spreadLimit)))     
+            else:
+                return float('%.2f' % (self.currentPrice * (1 - spreadLimit)))  
+        except:
+            ls.log.exception("Asset.__getArtificialAsk")
 
 
     def __spreadCheck(self):
         try:
             spreadPercentage = float(0)
-            priceVariancePercentage = float(0)
             spreadLimit = float(os.getenv('SPREAD_LIMIT'))
             
             if self.latestBid != 0: 
                 spreadPercentage = float(abs(((self.latestAsk / self.latestBid) - 1)))
             else:
                 return False
+                
+            if spreadPercentage > spreadLimit:
+                return False
+            else:
+                return True
+        except:
+            ls.log.exception("Asset.__spreadCheck")
+
+
+    def __priceCheck(self):
+        try:
+            priceVariancePercentage = float(0)
+            varianceLimit = float(os.getenv('PRICE_VARIANCE_LIMIT'))
 
             if self.secondaryPrice != 0:
                 priceVariancePercentage = float(abs(((self.latestTradePrice / self.secondaryPrice) - 1)))
             else:
                 return False
                 
-            if spreadPercentage > spreadLimit or priceVariancePercentage > spreadLimit:
+            if priceVariancePercentage > varianceLimit:
                 return False
             else:
                 return True
         except:
-            ls.log.exception("Asset.__spreadCheck")
+            ls.log.exception("Asset.__priceCheck")
 
