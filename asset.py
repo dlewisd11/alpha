@@ -20,7 +20,7 @@ class Asset:
             ls.log.debug({'latestTradePrice': self.latestTradePrice, 'secondaryPrice': self.secondaryPrice})
             self.secondaryPrice = self.secondaryPrice if self.secondaryPrice is not None else self.latestTradePrice
             self.priceCheck = self.__priceCheck()
-            self.currentPrice = self.latestTradePrice if self.priceCheck else self.secondaryPrice
+            self.currentPrice = float('%.2f' % (self.latestTradePrice if self.priceCheck else self.secondaryPrice))
 
             self.latestAsk = api.liveQuoteData[self.symbol].ask_price if liveQuoteDataPresent else self.latestQuote.ask_price
             self.latestBid = api.liveQuoteData[self.symbol].bid_price if liveQuoteDataPresent else self.latestQuote.bid_price
@@ -115,7 +115,7 @@ class Asset:
             else:
                 rsi = 100
 
-            return rsi
+            return float('%.3f' % rsi)
         except:
             ls.log.exception("Asset.__getRSI")
 
@@ -123,7 +123,7 @@ class Asset:
     def __getPercentUpDown(self, atTheOpen):
         try:
             previousPrice = self.previousOpeningPrice if atTheOpen else self.previousClosingPrice
-            return (self.currentPrice - previousPrice) / previousPrice
+            return float('%.6f' % ((self.currentPrice - previousPrice) / previousPrice))
         except:
             ls.log.exception("Asset.__getPercentUpDown")
 

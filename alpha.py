@@ -156,7 +156,7 @@ def main():
                 if not paperAccount:
                     oneYearReturn = getOneYearReturn()
                     oneYearBenchmarkReturn = getOneYearBenchmarkReturn()
-                    oneYearVariance = oneYearReturn - oneYearBenchmarkReturn
+                    oneYearVariance = float('%.6f' % (oneYearReturn - oneYearBenchmarkReturn))
 
                     ls.log.info(
                                     {
@@ -342,7 +342,7 @@ def getOneYearReturn():
         # withdrawals are negative, so we add them not subtract them here
         adjustedStartingEquity = startingEquity + totalDeposits + totalWithdrawals
         returnPercentage = (endingEquity - adjustedStartingEquity) / adjustedStartingEquity
-        return returnPercentage
+        return float('%.6f' % returnPercentage)
 
     except:
         ls.log.exception("alpha.getOneYearReturn")
@@ -356,7 +356,7 @@ def getOneYearBenchmarkReturn():
         endingPrice = float(barsData[len(barsData)-1].close)
         benchmarkDividendYield = getDividendYield(benchmarkSymbol, endingPrice)
         returnPercentage = ((endingPrice - startingPrice) / startingPrice) + benchmarkDividendYield
-        return returnPercentage
+        return float('%.6f' % returnPercentage)
     except:
         ls.log.exception("alpha.getOneYearBenchmarkReturn")
 
